@@ -13,7 +13,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'すべてのフィールドを入力してください。' }, { status: 400 });
     }
 
-    const result = await pool.query(
+    await pool.query(
       'INSERT INTO users (email, class_name, class_number, name, student_id, role) VALUES ($1, $2, $3, $4, $5, $6)',
       [email, classname, classnumber, name, studentid, 'member']
     );

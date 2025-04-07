@@ -1,5 +1,6 @@
 "use client";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Header from "../components/Header";
 
@@ -14,10 +15,14 @@ type Member = {
 
 export default function MemberPage() {
   const [members, setMembers] = useState<Member[]>([]);
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
+  const router = useRouter();
 
   useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/");
+    }
     async function fetchMembers() {
       try {
         const response = await fetch("/api/member");
@@ -32,7 +37,7 @@ export default function MemberPage() {
     if (session) {
       fetchMembers();
     }
-  }, [session]);
+  }, [session, status]);
   
 
   const handleRoleChange = async (email: string, newRole: string) => {

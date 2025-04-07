@@ -18,7 +18,7 @@ export default function ProjectPage() {
   const [isModalOpen, setIsModalOpen] = useState(false); // モーダルの開閉状態
   const [newProjectName, setNewProjectName] = useState(""); // 新しいプロジェクト名
   const [newProjectDescription, setNewProjectDescription] = useState(""); // 新しいプロジェクトの説明
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -32,7 +32,6 @@ export default function ProjectPage() {
         });
   
         if (!response.ok) {
-          const errorData = await response.json();
           return;
         }
   
