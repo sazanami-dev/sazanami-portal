@@ -32,7 +32,7 @@ export async function POST(req: Request) {
         "INSERT INTO projects (name, description) VALUES ($1, $2) RETURNING *",
         [newProjectName, newProjectDescription],
       );
-      const result2 = await pool.query(
+      await pool.query(
         "INSERT INTO joined_project (email, project_id) VALUES ($1, $2) RETURNING *",
         [email, result.rows[0].id],
       );
