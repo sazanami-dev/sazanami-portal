@@ -3,8 +3,8 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import React from 'react';
 
-export function withAuth<ComponentProps>(Component: React.FC<ComponentProps>) {
-  return function ProtectedComponent(props: ComponentProps) {
+export function withAuth<P>(Component: React.FC<P>) {
+  return function ProtectedComponent(props: P) {
     const { data: session, status } = useSession();
     const router = useRouter();
 
