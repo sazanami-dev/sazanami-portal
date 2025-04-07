@@ -1,5 +1,3 @@
-// app/project/page.tsx
-
 'use client'; // クライアントコンポーネントとして指定
 
 import React, { useState, useEffect } from "react";
@@ -16,6 +14,11 @@ export default function ProjectPage() {
   const [isModalOpen, setIsModalOpen] = useState(false); // モーダルの開閉状態
   const [newProjectName, setNewProjectName] = useState(""); // 新しいプロジェクト名
   const [newProjectDescription, setNewProjectDescription] = useState(""); // 新しいプロジェクトの説明
+<<<<<<< Updated upstream
+=======
+  const { status } = useSession();
+  const router = useRouter();
+>>>>>>> Stashed changes
   useEffect(() => {
     // ここでプロジェクト一覧を取得するロジックを追記
     const fetchProjects = async () => {
