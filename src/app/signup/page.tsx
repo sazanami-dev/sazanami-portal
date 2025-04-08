@@ -3,8 +3,6 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import styles from "../../styles/signup.module.css";
-import { withAuth } from '../../utils/withAuth';
 
 export default function Signup() {
   const [email, setEmail] = useState("");

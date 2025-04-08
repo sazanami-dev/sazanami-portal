@@ -3,6 +3,8 @@
 'use client'; // クライアントコンポーネントとして指定
 
 import React, { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Header from "../components/Header";
 
 type Project = {
@@ -16,7 +18,12 @@ export default function ProjectPage() {
   const [isModalOpen, setIsModalOpen] = useState(false); // モーダルの開閉状態
   const [newProjectName, setNewProjectName] = useState(""); // 新しいプロジェクト名
   const [newProjectDescription, setNewProjectDescription] = useState(""); // 新しいプロジェクトの説明
+  const { status } = useSession();
+  const router = useRouter();
   useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/");
+    }
     // ここでプロジェクト一覧を取得するロジックを追記
     const fetchProjects = async () => {
       try {
@@ -25,8 +32,6 @@ export default function ProjectPage() {
         });
   
         if (!response.ok) {
-          const errorData = await response.json();
-          alert(`エラー: ${errorData.error}`);
           return;
         }
   
@@ -39,7 +44,7 @@ export default function ProjectPage() {
     };
   
     fetchProjects();
-  }, []);
+  }, [status, router]);
 
   const handleCreateProject = () => {
     // モーダルを開く
