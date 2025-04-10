@@ -1,5 +1,3 @@
-// app/project/page.tsx
-
 'use client'; // クライアントコンポーネントとして指定
 
 import React, { useState, useEffect } from "react";

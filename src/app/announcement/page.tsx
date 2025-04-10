@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Header from "../components/Header";
 
 type Announcement = {
   announcement_id: number;
@@ -83,6 +84,7 @@ export default function AnnouncementPage() {
   return (
     <div className="pt-20 px-4">
       <h1 className="text-xl font-bold mb-4">お知らせ</h1>
+      <Header />
 
       {status === 'authenticated' && (
         <div>
