@@ -7,8 +7,8 @@ import Header from "../components/Header";
 
 type Announcement = {
   announcement_id: number;
-  user_email: string;
-  timestamp: string;
+  creator_email: string;
+  created_at: string;
   title: string;
   content: string;
 };
@@ -61,7 +61,7 @@ export default function AnnouncementPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_email: session.user.email,  // セッションからメールアドレスを取得
+          creator_email: session.user.email,  // セッションからメールアドレスを取得
           title: newTitle,
           content: newContent
         }),
@@ -73,7 +73,7 @@ export default function AnnouncementPage() {
       }
 
       const newAnnouncement = await response.json();
-      setAnnouncements([...announcements, newAnnouncement]);  // 新しいお知らせをリストに追加
+      setAnnouncements([...announcements, newAnnouncement]);
       setNewTitle('');
       setNewContent('');
     } catch (error) {
@@ -114,7 +114,9 @@ export default function AnnouncementPage() {
         {announcements.map((announcement) => (
           <li key={announcement.announcement_id} className="mb-4 p-4 border shadow-sm rounded">
             <h2 className="text-lg font-semibold">{announcement.title}</h2>
-            <p className="text-sm text-gray-600">{new Date(announcement.timestamp).toLocaleString()}</p>
+            <p className="text-sm text-gray-600">
+              {new Date(announcement.created_at).toLocaleString()}  {/* タイムスタンプをフォーマット */}
+            </p>
             <p>{announcement.content}</p>
           </li>
         ))}
