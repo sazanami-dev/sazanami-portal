@@ -7,31 +7,32 @@ const client = new Client({
 
 client.connect();
 
-// GETリクエスト - お知らせの一覧を取得
+// お知らせの一覧を取得
 export async function GET() {
   try {
-    const res = await client.query('SELECT * FROM announcements ORDER BY timestamp DESC');
+    const res = await client.query('SELECT * FROM announcements ORDER BY created_at DESC');
     return NextResponse.json(res.rows);
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: 'Error fetching announcements' }, { status: 500 });
+    return NextResponse.json({ error: 'お知らせの取得中にエラーが発生しました' }, { status: 500 });
   }
 }
 
-// POSTリクエスト - お知らせを新規作成
+// お知らせを新規作成
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { user_email, title, content } = body;
+    const { creator_email, title, content } = body;
 
+    // 新しいお知らせを挿入
     const res = await client.query(
-      'INSERT INTO announcements (user_email, title, content) VALUES ($1, $2, $3) RETURNING *',
-      [user_email, title, content]
+      'INSERT INTO announcements (creator_email, title, content) VALUES ($1, $2, $3) RETURNING *',
+      [creator_email, title, content]
     );
 
     return NextResponse.json(res.rows[0], { status: 201 });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: 'Error creating announcement' }, { status: 500 });
+    return NextResponse.json({ error: 'お知らせの作成中にエラーが発生しました' }, { status: 500 });
   }
 }
