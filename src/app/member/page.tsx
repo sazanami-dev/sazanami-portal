@@ -40,13 +40,13 @@ export default function MemberPage() {
   }, [session, status]);
   
 
-  const handleRoleChange = async (email: string, newRole: string) => {
+  const handleRoleChange = async (email: string, newRole: string, userName: string) => {
     if (email === session.user.email) {
       alert("自分のロールは変更できません。");
       return; // 処理を中断
     }
     const confirmChange = window.confirm(
-      `ユーザー ${email} のロールを ${newRole} に変更しますか？`
+      `${userName}のロールを${newRole}に変更しますか？`
     );
   
     if (!confirmChange) {
@@ -70,7 +70,7 @@ export default function MemberPage() {
           member.email === email ? { ...member, role: newRole } : member
         )
       );
-      alert(`ユーザー ${email} のロールが ${newRole} に変更されました。`);
+      alert(`${userName}のロールが${newRole}に変更されました。`);
     } catch (error) {
       console.error("Error updating role:", error);
       alert("ロールの更新中にエラーが発生しました。");
@@ -98,7 +98,7 @@ export default function MemberPage() {
           {currentUserRole === "admin" && member.role !== "guest" && ( // 管理者の場合
             <select
               value={member.role || ""}
-              onChange={(e) => handleRoleChange(member.email, e.target.value)}
+              onChange={(e) => handleRoleChange(member.email, e.target.value, member.name)}
               className="border border-gray-300 rounded px-2 py-1"
               disabled={member.email === session?.user?.email} // 自分のロール変更を無効化
             >
@@ -110,7 +110,7 @@ export default function MemberPage() {
           {currentUserRole === "manager" && member.role === "member" && ( // 運営の場合
             <select
               value={member.role || ""}
-              onChange={(e) => handleRoleChange(member.email, e.target.value)}
+              onChange={(e) => handleRoleChange(member.email, e.target.value, member.name)}
               className="border border-gray-300 rounded px-2 py-1"
               disabled={member.email === session?.user?.email} // 自分のロール変更を無効化
             >
@@ -121,7 +121,7 @@ export default function MemberPage() {
           {currentUserRole !== "member" && member.role === "guest" && ( // メンバーの場合
             // ゲストユーザーを昇格させるボタン
               <button
-                onClick={() => handleRoleChange(member.email, "member")}
+                onClick={(e) => handleRoleChange(member.email, "member", member.name)}
                 className="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
               >
                 メンバーに昇格
