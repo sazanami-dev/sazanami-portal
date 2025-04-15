@@ -14,7 +14,7 @@ type Announcement = {
 };
 
 export default function AnnouncementPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [newTitle, setNewTitle] = useState('');
