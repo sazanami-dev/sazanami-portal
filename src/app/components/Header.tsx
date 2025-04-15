@@ -4,7 +4,7 @@ import Link from "next/link";
 
 const Header = () => {
   return (
-    <header className="fixed top-0 w-full bg-white shadow-sm p-4 text-white flex items-center z-50">
+    <header className="fixed top-0 w-full bg-white shadow-xs p-4 text-white flex items-center z-50">
       <Link href="/top" className="flex items-center">
         <img src="/sazanami_dev.svg" alt="Logo" className="h-10" />
       </Link>
