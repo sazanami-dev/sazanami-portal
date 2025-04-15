@@ -1,9 +1,10 @@
 import { useSession } from 'next-auth/react';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import type { ComponentType, JSX } from 'react';
 
-export function withAuth<ComponentProps>(Component: React.FC<ComponentProps>) {
-  return function ProtectedComponent(props: ComponentProps) {
+export function withAuth<P>(Component: ComponentType<P>) {
+  const ProtectedComponent = (props: P): JSX.Element | null => {
     const { data: session, status } = useSession();
     const router = useRouter();
 
@@ -23,4 +24,6 @@ export function withAuth<ComponentProps>(Component: React.FC<ComponentProps>) {
 
     return <Component {...props} />;
   };
+
+  return ProtectedComponent;
 }
