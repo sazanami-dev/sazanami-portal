@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import type { ComponentType, JSX } from 'react';
 
 export function withAuth<P>(Component: ComponentType<P>) {
-  const ProtectedComponent = (props: P): JSX.Element | null => {
+  const ProtectedComponent = (props: JSX.LibraryManagedAttributes<typeof Component, P>) => {
     const { data: session, status } = useSession();
     const router = useRouter();
 
@@ -14,13 +14,8 @@ export function withAuth<P>(Component: ComponentType<P>) {
       }
     }, [status, router]);
 
-    if (status === 'loading') {
-      return <p>Loading...</p>;
-    }
-
-    if (!session) {
-      return null;
-    }
+    if (status === 'loading') return <p>Loading...</p>;
+    if (!session) return null;
 
     return <Component {...props} />;
   };
