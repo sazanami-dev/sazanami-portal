@@ -38,16 +38,17 @@ export default function MemberPage() {
       fetchMembers();
     }
   }, [session, status]);
+  
 
   const handleRoleChange = async (email: string, newRole: string) => {
-    if (session && email === session.user?.email) {
+    if (email === session.user.email) {
       alert("自分のロールは変更できません。");
       return; // 処理を中断
     }
     const confirmChange = window.confirm(
       `ユーザー ${email} のロールを ${newRole} に変更しますか？`
     );
-
+  
     if (!confirmChange) {
       return; // ユーザーがキャンセルした場合、処理を中断
     }
@@ -76,6 +77,7 @@ export default function MemberPage() {
     }
   };
 
+
   if (!session) {
     return <p>認証されていません。ログインしてください。</p>;
   }
@@ -93,24 +95,24 @@ export default function MemberPage() {
           {member.class_number && <p>クラス番号: {member.class_number}</p>}
           {member.student_id && <p>学籍番号: {member.student_id}</p>}
           {member.role && <p>ロール: {member.role}</p>}
-          {currentUserRole === "admin" && session && ( // 管理者の場合
+          {currentUserRole === "admin" && ( // 管理者の場合
             <select
               value={member.role || ""}
               onChange={(e) => handleRoleChange(member.email, e.target.value)}
               className="border border-gray-300 rounded px-2 py-1"
-              disabled={member.email === session.user?.email} // 自分のロール変更を無効化
+              disabled={member.email === session?.user?.email} // 自分のロール変更を無効化
             >
               <option value="member">メンバー</option>
               <option value="manager">運営</option>
               <option value="admin">管理者</option>
             </select>
           )}
-          {currentUserRole === "manager" && member.role === "member" && session && ( // 運営の場合
+          {currentUserRole === "manager" && member.role === "member" && ( // 運営の場合
             <select
               value={member.role || ""}
               onChange={(e) => handleRoleChange(member.email, e.target.value)}
               className="border border-gray-300 rounded px-2 py-1"
-              disabled={member.email === session.user?.email} // 自分のロール変更を無効化
+              disabled={member.email === session?.user?.email} // 自分のロール変更を無効化
             >
               <option value="member">メンバー</option>
               <option value="manager">運営</option>

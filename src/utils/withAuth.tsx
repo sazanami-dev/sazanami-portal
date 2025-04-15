@@ -1,11 +1,9 @@
 import { useSession } from 'next-auth/react';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ComponentType } from 'react';
 
-// withAuth関数
-export function withAuth<P>(Component: ComponentType<P>) {
-  const ProtectedComponent = (props: React.ComponentProps<typeof Component>): JSX.Element | null => {
+export function withAuth<ComponentProps>(Component: React.FC<ComponentProps>) {
+  return function ProtectedComponent(props: ComponentProps) {
     const { data: session, status } = useSession();
     const router = useRouter();
 
@@ -15,11 +13,14 @@ export function withAuth<P>(Component: ComponentType<P>) {
       }
     }, [status, router]);
 
-    if (status === 'loading') return <p>Loading...</p>;
-    if (!session) return null;
+    if (status === 'loading') {
+      return <p>Loading...</p>;
+    }
+
+    if (!session) {
+      return null;
+    }
 
     return <Component {...props} />;
   };
-
-  return ProtectedComponent;
 }

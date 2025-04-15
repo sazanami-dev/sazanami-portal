@@ -22,9 +22,10 @@ export default function AnnouncementPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/');
+      router.push('/');  // 未認証の場合はログイン画面にリダイレクト
     }
 
+    // 認証されたユーザーのみ、お知らせを取得する
     const fetchAnnouncements = async () => {
       if (status === 'authenticated' && session?.user?.email) {
         try {
@@ -60,9 +61,9 @@ export default function AnnouncementPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          creator_email: session.user.email,
+          creator_email: session.user.email,  // セッションからメールアドレスを取得
           title: newTitle,
-          content: newContent,
+          content: newContent
         }),
       });
 
@@ -80,48 +81,25 @@ export default function AnnouncementPage() {
     }
   };
 
-  const handleDeleteAnnouncement = async (announcement_id: number) => {
-    const confirmDelete = confirm('本当に削除しますか？');
-    if (!confirmDelete) return;
-
-    try {
-      const response = await fetch('/api/announcement', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ announcement_id }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        alert(`削除に失敗しました: ${error.error}`);
-        return;
-      }
-
-      setAnnouncements(prev => prev.filter(a => a.announcement_id !== announcement_id));
-    } catch (error) {
-      console.error('削除エラー:', error);
-    }
-  };
-
   return (
     <div className="pt-20 px-4">
       <h1 className="text-xl font-bold mb-4">お知らせ</h1>
       <Header />
 
       {status === 'authenticated' && (
-        <div className="mb-6">
+        <div>
           <input
             type="text"
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             placeholder="タイトル"
-            className="border mb-2 w-full p-2"
+            className="border mb-2"
           />
           <textarea
             value={newContent}
             onChange={(e) => setNewContent(e.target.value)}
             placeholder="内容"
-            className="border mb-2 w-full p-2"
+            className="border mb-2"
           />
           <button
             onClick={handleCreateAnnouncement}
@@ -137,17 +115,9 @@ export default function AnnouncementPage() {
           <li key={announcement.announcement_id} className="mb-4 p-4 border shadow-sm rounded">
             <h2 className="text-lg font-semibold">{announcement.title}</h2>
             <p className="text-sm text-gray-600">
-              {new Date(announcement.created_at).toLocaleString()}
+              {new Date(announcement.created_at).toLocaleString()}  {/* タイムスタンプをフォーマット */}
             </p>
             <p>{announcement.content}</p>
-            {session?.user?.email === announcement.creator_email && (
-              <button
-                onClick={() => handleDeleteAnnouncement(announcement.announcement_id)}
-                className="mt-2 bg-red-500 text-white px-3 py-1 rounded"
-              >
-                削除
-              </button>
-            )}
           </li>
         ))}
       </ul>
