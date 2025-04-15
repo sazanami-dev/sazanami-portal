@@ -95,7 +95,7 @@ export default function MemberPage() {
           {member.class_number && <p>クラス番号: {member.class_number}</p>}
           {member.student_id && <p>学籍番号: {member.student_id}</p>}
           {member.role && <p>ロール: {member.role}</p>}
-          {currentUserRole === "admin" && ( // 管理者の場合
+          {currentUserRole === "admin" && member.role !== "guest" && ( // 管理者の場合
             <select
               value={member.role || ""}
               onChange={(e) => handleRoleChange(member.email, e.target.value)}
@@ -117,6 +117,15 @@ export default function MemberPage() {
               <option value="member">メンバー</option>
               <option value="manager">運営</option>
             </select>
+          )}
+          {currentUserRole !== "member" && member.role === "guest" && ( // メンバーの場合
+            // ゲストユーザーを昇格させるボタン
+              <button
+                onClick={() => handleRoleChange(member.email, "member")}
+                className="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+              >
+                メンバーに昇格
+              </button>
           )}
         </div>
       ))}
