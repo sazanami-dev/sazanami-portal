@@ -31,11 +31,20 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const email = session?.user?.email;
+
+    if (!email) {
       return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
     }
 
-    const creator_email = session.user.email;
+    // ロール確認
+    const roleRes = await client.query('SELECT role FROM users WHERE email = $1', [email]);
+    const role = roleRes.rows[0]?.role;
+
+    if (role !== 'admin' && role !== 'manager') {
+      return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
+    }
+
     const body = await req.json();
     const { title, content } = body;
 
@@ -45,7 +54,7 @@ export async function POST(req: Request) {
 
     const res = await client.query(
       'INSERT INTO announcements (creator_email, title, content) VALUES ($1, $2, $3) RETURNING *',
-      [creator_email, title, content]
+      [email, title, content]
     );
 
     return NextResponse.json(res.rows[0], { status: 201 });
@@ -59,8 +68,18 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const email = session?.user?.email;
+
+    if (!email) {
       return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
+    }
+
+    // ロール確認
+    const roleRes = await client.query('SELECT role FROM users WHERE email = $1', [email]);
+    const role = roleRes.rows[0]?.role;
+
+    if (role !== 'admin' && role !== 'manager') {
+      return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
     }
 
     const body = await req.json();
@@ -72,7 +91,7 @@ export async function DELETE(req: Request) {
 
     const result = await client.query(
       'DELETE FROM announcements WHERE announcement_id = $1 AND creator_email = $2 RETURNING *',
-      [announcement_id, session.user.email]
+      [announcement_id, email]
     );
 
     if (result.rowCount === 0) {

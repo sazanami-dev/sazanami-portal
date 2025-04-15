@@ -19,39 +19,43 @@ export default function AnnouncementPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
+  const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/');
+      return;
     }
 
-    const fetchAnnouncements = async () => {
-      if (status === 'authenticated' && session?.user?.email) {
-        try {
-          const response = await fetch('/api/announcement');
-          if (!response.ok) {
-            alert('お知らせの取得に失敗しました');
-            return;
-          }
-          const data = await response.json();
-          setAnnouncements(data);
-        } catch (error) {
-          console.error('Error fetching announcements:', error);
-        }
-      }
-    };
+    if (status === 'authenticated') {
+      fetchAnnouncements();
+      fetchUserRole();
+    }
+  }, [status]);
 
-    fetchAnnouncements();
-  }, [status, session, router]);
+  const fetchAnnouncements = async () => {
+    try {
+      const response = await fetch('/api/announcement');
+      const data = await response.json();
+      setAnnouncements(data);
+    } catch (error) {
+      console.error('お知らせ取得エラー:', error);
+    }
+  };
+
+  const fetchUserRole = async () => {
+    try {
+      const res = await fetch('/api/announcement/role');
+      const data = await res.json();
+      setRole(data.role);
+    } catch (err) {
+      console.error('ロール取得失敗:', err);
+    }
+  };
 
   const handleCreateAnnouncement = async () => {
     if (!newTitle || !newContent) {
       alert('タイトルと内容を入力してください');
-      return;
-    }
-
-    if (!session?.user?.email) {
-      alert('認証情報がありません');
       return;
     }
 
@@ -60,14 +64,14 @@ export default function AnnouncementPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          creator_email: session.user.email,
           title: newTitle,
           content: newContent,
         }),
       });
 
       if (!response.ok) {
-        alert('お知らせの作成に失敗しました');
+        const error = await response.json();
+        alert(`作成エラー: ${error.error}`);
         return;
       }
 
@@ -76,13 +80,12 @@ export default function AnnouncementPage() {
       setNewTitle('');
       setNewContent('');
     } catch (error) {
-      console.error('Error creating announcement:', error);
+      console.error('作成エラー:', error);
     }
   };
 
   const handleDeleteAnnouncement = async (announcement_id: number) => {
-    const confirmDelete = confirm('本当に削除しますか？');
-    if (!confirmDelete) return;
+    if (!confirm('本当に削除しますか？')) return;
 
     try {
       const response = await fetch('/api/announcement', {
@@ -103,12 +106,14 @@ export default function AnnouncementPage() {
     }
   };
 
+  const isAdminOrManager = role === 'admin' || role === 'manager';
+
   return (
     <div className="pt-20 px-4">
-      <h1 className="text-xl font-bold mb-4">お知らせ</h1>
       <Header />
+      <h1 className="text-xl font-bold mb-4">お知らせ</h1>
 
-      {status === 'authenticated' && (
+      {isAdminOrManager && (
         <div className="mb-6">
           <input
             type="text"
@@ -134,13 +139,17 @@ export default function AnnouncementPage() {
 
       <ul>
         {announcements.map((announcement) => (
-          <li key={announcement.announcement_id} className="mb-4 p-4 border shadow-sm rounded">
+          <li
+            key={announcement.announcement_id}
+            className="mb-4 p-4 border shadow-sm rounded"
+          >
             <h2 className="text-lg font-semibold">{announcement.title}</h2>
             <p className="text-sm text-gray-600">
               {new Date(announcement.created_at).toLocaleString()}
             </p>
             <p>{announcement.content}</p>
-            {session?.user?.email === announcement.creator_email && (
+
+            {isAdminOrManager && (
               <button
                 onClick={() => handleDeleteAnnouncement(announcement.announcement_id)}
                 className="mt-2 bg-red-500 text-white px-3 py-1 rounded"
