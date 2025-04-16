@@ -3,6 +3,8 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Input } from '@heroui/input';
+import { Button } from '@heroui/button';
 
 export default function Signup() {
   const [email, setEmail] = useState("");
@@ -60,69 +62,67 @@ export default function Signup() {
         </div>
         <title>サインアップ</title>
         <h1 className="text-2xl font-bold mb-4 text-center">サインアップ</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block font-medium mb-1">メールアドレス</label>
-            <input
+            <Input
+              label="メールアドレス"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none"
+              disabled
             />
           </div>
 
+
           <div>
-            <label className="block font-medium mb-1">クラス名</label>
-            <input
+            <Input
+              label="クラス"
               type="text"
               value={classname}
               onChange={(e) => setClassname(e.target.value)}
               required
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block font-medium mb-1">出席番号</label>
-            <input
+            <Input
+              label="出席番号"
               type="text"
               value={classnumber}
               onChange={(e) => setClassnumber(e.target.value)}
               required
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block font-medium mb-1">学籍番号</label>
-            <input
+            <Input
+              label="学籍番号"
               type="text"
               value={studentid}
               onChange={(e) => setStudentid(e.target.value)}
               required
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block font-medium mb-1">名前</label>
-            <input
+            <Input
+              label="名前"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none"
             />
           </div>
 
           <div className="flex justify-center mt-10">
-            <button
+            <Button
+              className="bg-linear-to-tr from-[#1e3c72] to-[#2a5298] text-white shadow-lg"
+              size='lg'
               type="submit"
-              className="inline-flex h-12 items-center justify-center rounded-md bg-gradient-to-l from-[#29323c] to-[#485563] px-10 font-medium text-neutral-50 shadow-lg shadow-neutral-500/20 transition active:scale-95"
             >
               登録
-            </button>
+            </Button>
           </div>
         </form>
       </div>
