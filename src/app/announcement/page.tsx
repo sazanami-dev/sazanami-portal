@@ -110,6 +110,7 @@ export default function AnnouncementPage() {
 
   return (
     <div className="pt-20 px-4">
+      <title>お知らせ</title>
       <Header />
       <h1 className="text-xl font-bold mb-4">お知らせ</h1>
 
