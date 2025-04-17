@@ -23,9 +23,12 @@ export async function GET() {
       case "manager":
         const allMembers = await pool.query("SELECT * FROM users");
         return NextResponse.json({ members: allMembers.rows, role: result.rows[0].role });
-      default:
-        const basicMembers = await pool.query("SELECT name FROM users");
+      case "member":
+        const basicMembers = await pool.query("SELECT name, student_id FROM users");
         return NextResponse.json({ members: basicMembers.rows, role: result.rows[0].role });
+      default:
+        return NextResponse.json({ error: "承認されていないユーザーです。" }, { status: 403 });
+        
     }
   } catch (error) {
     console.error("Database error:", error);

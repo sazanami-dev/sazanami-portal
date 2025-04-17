@@ -88,7 +88,7 @@ export default function MemberPage() {
       <Header />
       <h1 className="text-xl font-bold mb-4">所属メンバー</h1>
       {members.map((member, index) => (
-        <div key={index} className="bg-white p-4 shadow-md rounded w-full">
+        <div key={index} className="bg-white p-4 shadow-md rounded-sm w-full">
           <p>名前: {member.name}</p>
           {member.email && <p>メール: {member.email}</p>}
           {member.class_name && <p>クラス名: {member.class_name}</p>}
@@ -99,7 +99,7 @@ export default function MemberPage() {
             <select
               value={member.role || ""}
               onChange={(e) => handleRoleChange(member.email, e.target.value)}
-              className="border border-gray-300 rounded px-2 py-1"
+              className="border border-gray-300 rounded-sm px-2 py-1"
               disabled={member.email === session?.user?.email} // 自分のロール変更を無効化
             >
               <option value="member">メンバー</option>
@@ -111,7 +111,7 @@ export default function MemberPage() {
             <select
               value={member.role || ""}
               onChange={(e) => handleRoleChange(member.email, e.target.value)}
-              className="border border-gray-300 rounded px-2 py-1"
+              className="border border-gray-300 rounded-sm px-2 py-1"
               disabled={member.email === session?.user?.email} // 自分のロール変更を無効化
             >
               <option value="member">メンバー</option>

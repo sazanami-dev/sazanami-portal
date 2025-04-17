@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 
     await pool.query(
       'INSERT INTO users (email, class_name, class_number, name, student_id, role) VALUES ($1, $2, $3, $4, $5, $6)',
-      [email, classname, classnumber, name, studentid, 'member']
+      [email, classname, classnumber, name, studentid, 'guest']
     );
 
     return NextResponse.json({ message: 'ユーザーが登録されました。' }, { status: 201 });
