@@ -121,7 +121,7 @@ export default function MemberPage() {
           {currentUserRole !== "member" && member.role === "guest" && ( // メンバーの場合
             // ゲストユーザーを昇格させるボタン
               <button
-                onClick={(e) => handleRoleChange(member.email, "member", member.name)}
+                onClick={() => handleRoleChange(member.email, "member", member.name)}
                 className="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
               >
                 メンバーに昇格
