@@ -11,6 +11,8 @@ type Announcement = {
   created_at: string;
   title: string;
   content: string;
+  name: string;
+  class_name: string;
 };
 
 export default function AnnouncementPage() {
@@ -138,29 +140,31 @@ export default function AnnouncementPage() {
         </div>
       )}
 
-      <ul>
-        {announcements.map((announcement) => (
-          <li
-            key={announcement.announcement_id}
-            className="mb-4 p-4 border shadow-sm rounded"
-          >
-            <h2 className="text-lg font-semibold">{announcement.title}</h2>
-            <p className="text-sm text-gray-600">
-              {new Date(announcement.created_at).toLocaleString()}
-            </p>
-            <p>{announcement.content}</p>
+<ul>
+  {announcements.map((announcement) => (
+    <li
+      key={announcement.announcement_id}
+      className="mb-4 p-4 border shadow-sm rounded bg-white"
+    >
+      <h2 className="text-lg font-semibold">{announcement.title}</h2>
+      <p className="mt-2">{announcement.content}</p>
 
-            {isAdminOrManager && (
-              <button
-                onClick={() => handleDeleteAnnouncement(announcement.announcement_id)}
-                className="mt-2 bg-red-500 text-white px-3 py-1 rounded"
-              >
-                削除
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
+      <p className="text-sm text-gray-600 mt-2">
+        {new Date(announcement.created_at).toLocaleString()} | {announcement.class_name} {announcement.name}
+      </p>
+
+      {isAdminOrManager && (
+        <button
+          onClick={() => handleDeleteAnnouncement(announcement.announcement_id)}
+          className="mt-2 bg-red-500 text-white px-3 py-1 rounded"
+        >
+          削除
+        </button>
+      )}
+    </li>
+  ))}
+</ul>
+
     </div>
   );
 }

@@ -17,9 +17,8 @@ export async function GET() {
       return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
     }
 
-    const res = await client.query(
-      'SELECT announcement_id, creator_email, created_at, title, content FROM announcements ORDER BY created_at DESC'
-    );
+    const res = await client.query(`SELECT a.announcement_id, a.creator_email, a.created_at, a.title, a.content, u.name, u.class_name FROM announcements a JOIN users u ON a.creator_email = u.email ORDER BY a.created_at DESC`);
+
     return NextResponse.json(res.rows);
   } catch (error) {
     console.error(error);

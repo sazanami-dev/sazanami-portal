@@ -11,6 +11,8 @@ type Announcement = {
   created_at: string;
   title: string;
   content: string;
+  name: string;
+  class_name: string;
 };
 
 const Top: React.FC = () => {
@@ -57,7 +59,7 @@ const Top: React.FC = () => {
       <title>さざなみポータル</title>
       <Header />
       <div className="max-w-4xl mx-auto">
-      <h1 className="text-xl font-bold mb-4">最新のお知らせ</h1>
+        <h1 className="text-xl font-bold mb-4">最新のお知らせ</h1>
         {announcements.length === 0 ? (
           <p className="text-center text-gray-500">お知らせはまだありません。</p>
         ) : (
@@ -70,7 +72,7 @@ const Top: React.FC = () => {
                 <h2 className="text-xl font-semibold text-gray-800 mb-2">{a.title}</h2>
                 <p className="text-gray-700 mb-4 whitespace-pre-wrap">{a.content}</p>
                 <div className="text-sm text-gray-500 text-right">
-                  {new Date(a.created_at).toLocaleString()} | {a.creator_email}
+                  {new Date(a.created_at).toLocaleString()} | {a.class_name} {a.name}
                 </div>
               </div>
             ))}
