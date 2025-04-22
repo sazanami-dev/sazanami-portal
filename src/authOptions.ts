@@ -1,8 +1,13 @@
 import { NextAuthOptions } from "next-auth";
+import PostgresAdapter from "@auth/pg-adapter"
+import { Pool } from "pg"
 import GoogleProvider from "next-auth/providers/google";
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
+  adapter: PostgresAdapter(new Pool({
+    connectionString: process.env.DATABASE_URL,
+  })),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
