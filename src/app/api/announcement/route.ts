@@ -13,8 +13,18 @@ client.connect();
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const email = session?.user?.email;
+
+    if (!email) {
       return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
+    }
+
+    // ロール確認
+    const roleRes = await client.query('SELECT role FROM users WHERE email = $1', [email]);
+    const role = roleRes.rows[0]?.role;
+
+    if (role === 'guest') {
+      return NextResponse.json([]);
     }
 
     const res = await client.query(`SELECT a.announcement_id, a.creator_email, a.created_at, a.title, a.content, u.name, u.class_name FROM announcements a JOIN users u ON a.creator_email = u.email ORDER BY a.created_at DESC`);
