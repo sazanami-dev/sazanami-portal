@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const result = await pool.query('SELECT * FROM members WHERE email = $1', [email]);
 
     return NextResponse.json({ registered: result.rows.length > 0 });
   } catch (error) {
