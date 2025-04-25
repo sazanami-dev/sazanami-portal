@@ -54,6 +54,30 @@ export default function Signup() {
     return <p>認証されていません。ログインしてください。</p>;
   }
 
+  const checkUser = async () => {
+    try {
+      const response = await fetch("/api/auth/check-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: session.user.email }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.registered) {
+        router.push("/top");
+      }
+    } catch (error) {
+      console.error("ユーザー確認エラー:", error);
+    }
+  };
+
+  checkUser();
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-6 shadow-md w-full max-w-md rounded-xl">
