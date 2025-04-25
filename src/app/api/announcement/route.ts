@@ -20,14 +20,14 @@ export async function GET() {
     }
 
     // ロール確認
-    const roleRes = await client.query('SELECT role FROM users WHERE email = $1', [email]);
+    const roleRes = await client.query('SELECT role FROM members WHERE email = $1', [email]);
     const role = roleRes.rows[0]?.role;
 
     if (role === 'guest') {
       return NextResponse.json([]);
     }
 
-    const res = await client.query(`SELECT a.announcement_id, a.creator_email, a.created_at, a.title, a.content, u.name, u.class_name FROM announcements a JOIN users u ON a.creator_email = u.email ORDER BY a.created_at DESC`);
+    const res = await client.query(`SELECT a.announcement_id, a.creator_email, a.created_at, a.title, a.content, u.name, u.class_name FROM announcements a JOIN members u ON a.creator_email = u.email ORDER BY a.created_at DESC`);
 
     return NextResponse.json(res.rows);
   } catch (error) {
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     }
 
     // ロール確認
-    const roleRes = await client.query('SELECT role FROM users WHERE email = $1', [email]);
+    const roleRes = await client.query('SELECT role FROM members WHERE email = $1', [email]);
     const role = roleRes.rows[0]?.role;
 
     if (role !== 'admin' && role !== 'manager') {
@@ -84,7 +84,7 @@ export async function DELETE(req: Request) {
     }
 
     // ロール確認
-    const roleRes = await client.query('SELECT role FROM users WHERE email = $1', [email]);
+    const roleRes = await client.query('SELECT role FROM members WHERE email = $1', [email]);
     const role = roleRes.rows[0]?.role;
 
     if (role !== 'admin' && role !== 'manager') {
