@@ -16,7 +16,7 @@ export async function GET() {
 
     const email = session.user.email;
 
-    const result = await pool.query("SELECT role FROM memebrs WHERE email = $1", [email]);
+    const result = await pool.query("SELECT role FROM members WHERE email = $1", [email]);
 
     switch (result.rows[0].role) {
       case "admin":
