@@ -107,12 +107,12 @@ export default function ProjectPage() {
         {projects.map((project) => (
           <div
             key={project.id}
-            className="flex items-center justify-between bg-white p-4 shadow-md rounded mb-2">
+            className="flex items-center justify-between bg-white p-4 shadow-md rounded-sm mb-2">
             <li className="text-lg font-bold">{project.name}</li>
             <p className="text-sm text-gray-600">{project.description}</p>
             <button
             onClick={() => handleDetailProject(project.id)}
-            className="bg-blue-500 text-white px-4 py-2 rounded">
+            className="bg-blue-500 text-white px-4 py-2 rounded-sm">
               プロジェクト詳細
             </button>
           </div>
@@ -120,7 +120,7 @@ export default function ProjectPage() {
       </ul>
       <button
         onClick={handleCreateProject}
-        className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
+        className="mt-4 bg-blue-500 text-white px-4 py-2 rounded-sm"
       >
         プロジェクトを作成する
       </button>
@@ -128,32 +128,32 @@ export default function ProjectPage() {
       {/* モーダル */}
       {isModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded shadow-md w-1/3">
+          <div className="bg-white p-6 rounded-sm shadow-md w-1/3">
             <h2 className="text-lg font-bold mb-4">新しいプロジェクトを作成</h2>
             <input
               type="text"
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}
               placeholder="プロジェクト名を入力"
-              className="w-full border border-gray-300 rounded px-3 py-2 mb-4"
+              className="w-full border border-gray-300 rounded-sm px-3 py-2 mb-4"
             />
             <textarea
               value={newProjectDescription}
               onChange={(e) => setNewProjectDescription(e.target.value)}
               placeholder="プロジェクトの説明を入力"
-              className="w-full border border-gray-300 rounded px-3 py-2 mb-4"
+              className="w-full border border-gray-300 rounded-sm px-3 py-2 mb-4"
               rows={4}
             />
             <div className="flex justify-end space-x-2">
               <button
                 onClick={handleCloseModal}
-                className="bg-gray-500 text-white px-4 py-2 rounded"
+                className="bg-gray-500 text-white px-4 py-2 rounded-sm"
               >
                 キャンセル
               </button>
               <button
                 onClick={handleSaveProject}
-                className="bg-blue-500 text-white px-4 py-2 rounded"
+                className="bg-blue-500 text-white px-4 py-2 rounded-sm"
               >
                 保存
               </button>
