@@ -19,7 +19,7 @@ export async function POST(req: Request) {
       );
     }
     const useremail = session.user.email;
-    const getRole = await pool.query("SELECT role FROM users WHERE email = $1", [useremail]);
+    const getRole = await pool.query("SELECT role FROM members WHERE email = $1", [useremail]);
     const userRole = getRole.rows[0].role;
     const {email, role} = await req.json();
 
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
 
     // 管理者の権限チェック
     if (userRole === "admin") {
-      await pool.query("UPDATE users SET role = $1 WHERE email = $2", [
+      await pool.query("UPDATE members SET role = $1 WHERE email = $2", [
         role,
         email,
       ]);
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
           { status: 403 }
         );
       }
-      await pool.query("UPDATE users SET role = $1 WHERE email = $2", [
+      await pool.query("UPDATE members SET role = $1 WHERE email = $2", [
         role,
         email,
       ]);

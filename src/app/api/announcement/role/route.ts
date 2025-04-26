@@ -17,7 +17,7 @@ export async function GET() {
       return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
     }
 
-    const result = await client.query('SELECT role FROM users WHERE email = $1', [email]);
+    const result = await client.query('SELECT role FROM members WHERE email = $1', [email]);
     const role = result.rows[0]?.role || null;
 
     return NextResponse.json({ role });

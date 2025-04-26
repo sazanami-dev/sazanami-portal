@@ -16,15 +16,15 @@ export async function GET() {
 
     const email = session.user.email;
 
-    const result = await pool.query("SELECT role FROM users WHERE email = $1", [email]);
+    const result = await pool.query("SELECT role FROM members WHERE email = $1", [email]);
 
     switch (result.rows[0].role) {
       case "admin":
       case "manager":
-        const allMembers = await pool.query("SELECT * FROM users");
+        const allMembers = await pool.query("SELECT * FROM members");
         return NextResponse.json({ members: allMembers.rows, role: result.rows[0].role });
       case "member":
-        const basicMembers = await pool.query("SELECT name, student_id FROM users");
+        const basicMembers = await pool.query("SELECT name, student_id FROM members");
         return NextResponse.json({ members: basicMembers.rows, role: result.rows[0].role });
       default:
         return NextResponse.json({ error: "承認されていないユーザーです。" }, { status: 403 });
