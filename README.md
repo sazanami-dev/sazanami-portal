@@ -18,10 +18,6 @@ SysHackで開発したものを継続開発で作成。<br>学校・組織向け
   <!-- 認証・その他 -->
   <img src="https://img.shields.io/badge/-NextAuth.js-000000.svg?logo=auth0&style=for-the-badge&logoColor=white">
   <img src="https://img.shields.io/badge/-Google%20OAuth-4285F4.svg?logo=google&style=for-the-badge&logoColor=white">
-  <img src="https://img.shields.io/badge/-Discord.js-5865F2.svg?logo=discord&style=for-the-badge&logoColor=white">
-  <!-- ツール -->
-  <img src="https://img.shields.io/badge/-ESLint-4B32C3.svg?logo=eslint&style=for-the-badge&logoColor=white">
-  <img src="https://img.shields.io/badge/-PostCSS-DD3A0A.svg?logo=postcss&style=for-the-badge&logoColor=white">
 </p>
 
 ## 主な機能
