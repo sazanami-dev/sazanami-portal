@@ -52,7 +52,7 @@ SysHackで開発したものを継続開発で作成。<br>学校・組織向け
 - **Next.js API Routes**
 - **NextAuth.js**
 - **PostgreSQL**
-- 
+
 ## 使用方法
 
 ### 初回ログイン
