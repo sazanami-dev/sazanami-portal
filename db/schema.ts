@@ -50,7 +50,7 @@ export const users = pgTable('users', {
   // auth.users.id と 1:1 で対応する PK
   id: uuid('id').primaryKey(),
 
-  role: userRoleEnum('role').notNull().default('member'),
+  role: userRoleEnum('role').notNull().default('guest'),
   email: text('email').notNull(),
 
   studentId: varchar('student_id', { length: 255 }),
