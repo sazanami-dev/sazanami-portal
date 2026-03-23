@@ -41,9 +41,9 @@ export async function GET(request: Request) {
   }
   // ここが分岐の要点
   if (!appUser) {
-    next = '/signup'
+    next = '/join'
   } else if (appUser.status !== 'active') {
-    next = '/pending'
+    next = '/join'
   }
   const forwardedHost = request.headers.get('x-forwarded-host')
   return redirectTo(origin, forwardedHost, next)

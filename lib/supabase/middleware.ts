@@ -3,8 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const ALLOW_PATHS_FOR_LIMITED_USERS = [
   '/signin',
-  '/signup',
-  '/pending',
+  '/join',
 ]
 
 function isAllowedPath(pathname: string) {
@@ -55,29 +54,56 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // B) ログイン済みなら DB の users.status を確認して pending/未登録をガード
-  // claims.sub が Supabase Auth の user id
+  // B) ログイン済みなら「やり残し」判定をして /join へ寄せる
   const userId = claims?.sub
-  if (userId && !isAllowedPath(pathname)) {
+  if (userId) {
     const { data: appUser, error: appUserErr } = await supabase
       .from('users')
       .select('status')
       .eq('id', userId)
       .maybeSingle()
 
-    // エラー時は安全側に倒す（とりあえず /error 等でもOK）
-    if (!appUserErr) {
-      if (!appUser) {
-        const url = request.nextUrl.clone()
-        url.pathname = '/signup'
-        return NextResponse.redirect(url)
-      }
+    // identity 判定のために auth user を取得
+    const { data: userData, error: userErr } = await supabase.auth.getUser()
+    const identities = userData?.user?.identities ?? []
 
-      if (appUser.status !== 'active') {
-        const url = request.nextUrl.clone()
-        url.pathname = '/pending'
-        return NextResponse.redirect(url)
-      }
+    const hasRegistration = !!appUser
+    const isActive = appUser?.status === 'active'
+
+    const hasGithub = identities.some((i) => i.provider === 'github')
+    const hasDiscord = identities.some((i) => i.provider === 'discord')
+    const { data: discordIdentity } = await supabase
+      .from('user_identities')
+      .select('is_server_joined')
+      .eq('user_id', userId)
+      .eq('provider', 'discord')
+      .maybeSingle()
+
+    const isDiscordServerJoined = !!discordIdentity?.is_server_joined
+    const hasRequiredLinks = hasGithub && hasDiscord //&& isDiscordServerJoined
+
+    const hasUnfinishedTasks =
+      !hasRegistration || !isActive || !hasRequiredLinks
+
+    const isAllowedPath =
+      pathname === '/join' ||
+      pathname.startsWith('/join/') ||
+      pathname.startsWith('/signin') ||
+      pathname.startsWith('/api/auth') ||
+      pathname.startsWith('/error')
+
+    // やり残しがあるのに /join 以外へ行こうとしたら /join へ
+    if (!appUserErr && !userErr && hasUnfinishedTasks && !isAllowedPath) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/join'
+      return NextResponse.redirect(url)
+    }
+
+    // 任意: やり残しが無いのに /join に来たらトップへ
+    if (!appUserErr && !userErr && !hasUnfinishedTasks && pathname === '/join') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
     }
   }
 

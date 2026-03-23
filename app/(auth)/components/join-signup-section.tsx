@@ -1,12 +1,11 @@
+// app/(auth)/components/signup-form.tsx
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-
 import { createClient } from '@/lib/supabase/client'
 
 function extractStudentIdFromEmail(email: string): string | null {
-  // it123456@xxx.jp -> "123456" を student_id として扱う例
   const local = email.split('@')[0] ?? ''
   const m = local.match(/^it(\d{6})$/i)
   if (!m) return null
@@ -14,7 +13,6 @@ function extractStudentIdFromEmail(email: string): string | null {
 }
 
 function admissionYearFromStudentId(studentId: string): number | null {
-  // "240001" -> 2024
   const m = studentId.match(/^(\d{2})\d{4}$/)
   if (!m) return null
   return 2000 + Number(m[1])
@@ -24,19 +22,14 @@ function inferClassAndAttendance(displayName: string): {
   className: string | null
   attendanceNumber: number | null
 } {
-  // 例: SS2-18山田 太郎
   const m = displayName.match(/^([A-Za-z0-9]{3})-(\d{2})/)
   if (!m) return { className: null, attendanceNumber: null }
   return { className: m[1], attendanceNumber: Number(m[2]) }
 }
 
 function normalizeName(displayName: string): string {
-    // 例:
-    // "SS2-18山田 太郎" -> "山田 太郎"
-    // "山田 太郎" -> "山田 太郎"
-    // 先頭が "XXX-00" の場合だけ剥がす
-    return displayName.replace(/^[A-Za-z0-9]{3}-\d{2}\s*/, '').trim()
-  }
+  return displayName.replace(/^[A-Za-z0-9]{3}-\d{2}\s*/, '').trim()
+}
 
 function calcExpectedGraduationYear(
   admissionYear: number | null,
@@ -58,11 +51,15 @@ function calcExpectedGraduationYear(
   return plus ? admissionYear + plus : null
 }
 
-// とりあえずの選択肢（必要に応じて増やす）
 const CLASS_OPTIONS = ['SS1', 'SS2', 'SS3', 'GS1', 'NS1', 'JT1', 'TW1'] as const
 const ATTENDANCE_OPTIONS = Array.from({ length: 50 }, (_, i) => i + 1)
 
-export default function SignupPage() {
+type SignupFormProps = {
+  /** 登録完了後に遷移したいパス（例: '/pending' や '/join'） */
+  afterSuccessPath?: string
+}
+
+export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
 
@@ -74,11 +71,6 @@ export default function SignupPage() {
 
   const studentId = useMemo(() => extractStudentIdFromEmail(email) ?? '', [email])
 
-  const inferred = useMemo(
-    () => inferClassAndAttendance(displayName),
-    [displayName]
-  )
-
   const [className, setClassName] = useState('')
   const [attendanceNumber, setAttendanceNumber] = useState<number | ''>('')
   const [name, setName] = useState('')
@@ -88,6 +80,7 @@ export default function SignupPage() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
+  // 初期化: auth ユーザー取得 & 既登録チェック
   useEffect(() => {
     const run = async () => {
       setLoadingInit(true)
@@ -109,12 +102,10 @@ export default function SignupPage() {
       setDisplayName(dn)
       setName(normalizeName(dn))
 
-      // 推定が効くなら初期選択
       const inf = inferClassAndAttendance(dn)
       if (inf.className) setClassName(inf.className)
       if (inf.attendanceNumber) setAttendanceNumber(inf.attendanceNumber)
 
-      // 既に登録済みなら飛ばす（直アクセス対策）
       const { data: appUser, error: appUserErr } = await supabase
         .from('users')
         .select('status')
@@ -132,7 +123,7 @@ export default function SignupPage() {
         return
       }
       if (appUser && appUser.status !== 'active') {
-        router.replace('/pending')
+        router.replace('/join')
         return
       }
 
@@ -204,29 +195,29 @@ export default function SignupPage() {
       return
     }
 
-    router.replace('/pending')
+    router.replace(afterSuccessPath)
   }
 
   if (loadingInit) {
     return (
-      <main className="mx-auto max-w-lg p-6">
+      <div className="mx-auto max-w-lg p-6">
         <p className="text-sm text-muted-foreground">読み込み中…</p>
-      </main>
+      </div>
     )
   }
 
   if (initError) {
     return (
-      <main className="mx-auto max-w-lg p-6">
+      <div className="mx-auto max-w-lg p-6">
         <p className="text-sm text-red-600">初期化に失敗しました: {initError}</p>
-      </main>
+      </div>
     )
   }
 
   return (
-    <main className="mx-auto max-w-lg p-6 space-y-6">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">ユーザー登録</h1>
+        <h2 className="text-lg font-semibold">ユーザー登録</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           必要情報を入力してください。登録後は承認待ちになります。
         </p>
@@ -247,10 +238,16 @@ export default function SignupPage() {
 
         <div className="space-y-1">
           <label className="text-sm font-medium">class_name</label>
-          <select className="w-full rounded border px-3 py-2" value={className} onChange={(e) => setClassName(e.target.value)}>
+          <select
+            className="w-full rounded border px-3 py-2"
+            value={className}
+            onChange={(e) => setClassName(e.target.value)}
+          >
             <option value="">選択してください</option>
             {CLASS_OPTIONS.map((c) => (
-              <option key={c} value={c}>{c}</option>
+              <option key={c} value={c}>
+                {c}
+              </option>
             ))}
           </select>
         </div>
@@ -260,32 +257,50 @@ export default function SignupPage() {
           <select
             className="w-full rounded border px-3 py-2"
             value={attendanceNumber}
-            onChange={(e) => setAttendanceNumber(e.target.value ? Number(e.target.value) : '')}
+            onChange={(e) =>
+              setAttendanceNumber(e.target.value ? Number(e.target.value) : '')
+            }
           >
             <option value="">選択してください</option>
             {ATTENDANCE_OPTIONS.map((n) => (
-              <option key={n} value={n}>{n}</option>
+              <option key={n} value={n}>
+                {n}
+              </option>
             ))}
           </select>
         </div>
 
         <div className="space-y-1">
           <label className="text-sm font-medium">name（微調整可）</label>
-          <input className="w-full rounded border px-3 py-2" value={name} onChange={(e) => setName(e.target.value)} />
+          <input
+            className="w-full rounded border px-3 py-2"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
         </div>
 
         <div className="space-y-1">
           <label className="text-sm font-medium">name_kana</label>
-          <input className="w-full rounded border px-3 py-2" value={nameKana} onChange={(e) => setNameKana(e.target.value)} />
+          <input
+            className="w-full rounded border px-3 py-2"
+            value={nameKana}
+            onChange={(e) => setNameKana(e.target.value)}
+          />
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm font-medium">expected_graduation_year（微調整可）</label>
+          <label className="text-sm font-medium">
+            expected_graduation_year（微調整可）
+          </label>
           <input
             className="w-full rounded border px-3 py-2"
             type="number"
             value={expectedGraduationYear}
-            onChange={(e) => setExpectedGraduationYear(e.target.value ? Number(e.target.value) : '')}
+            onChange={(e) =>
+              setExpectedGraduationYear(
+                e.target.value ? Number(e.target.value) : ''
+              )
+            }
           />
         </div>
 
@@ -297,6 +312,6 @@ export default function SignupPage() {
           {submitting ? '送信中…' : '登録する'}
         </button>
       </div>
-    </main>
+    </div>
   )
 }
