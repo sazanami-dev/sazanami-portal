@@ -15,6 +15,13 @@
       "when": 1773851947289,
       "tag": "0001_left_dragon_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774926339910,
+      "tag": "0002_abandoned_ultimo",
+      "breakpoints": true
     }
   ]
 }

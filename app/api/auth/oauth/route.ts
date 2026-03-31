@@ -30,6 +30,33 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/error`)
   }
   const userId = userData.user.id
+  // auth.identities → user_identities テーブルへ同期
+  const identities = userData.user.identities ?? []
+  const targetProviders = ['discord', 'github'] as const
+  for (const identity of identities) {
+    if (!targetProviders.includes(identity.provider as any)) continue
+    const identityData = (identity.identity_data ?? {}) as Record<string, unknown>
+    const providerUserId = identity.id  // Supabase identity の provider_id
+    const username =
+      (typeof identityData.user_name === 'string' && identityData.user_name) ||
+      (typeof identityData.preferred_username === 'string' && identityData.preferred_username) ||
+      (typeof identityData.name === 'string' && identityData.name) ||
+      (typeof identityData.full_name === 'string' && identityData.full_name) ||
+      ''
+
+    await supabase
+      .from('user_identities')
+      .upsert(
+        {
+          id: crypto.randomUUID(),
+          user_id: userId,
+          provider: identity.provider,
+          provider_user_id: providerUserId,
+          username,
+        },
+        { onConflict: 'user_id,provider' }  // ユニーク制約名に対応
+      )
+  }
   // 登録有無/ステータス確認（RLSで本人のみ見える想定）
   const { data: appUser, error: appUserErr } = await supabase
     .from('users')

@@ -24,6 +24,17 @@ export function UnlinkIdentityButton({ identity }: { identity: UserIdentity }) {
       return
     }
 
+    // user_identities テーブルからも削除
+    const { data: userData } = await supabase.auth.getUser()
+    if (userData?.user) {
+      await supabase
+        .from('user_identities')
+        .delete()
+        .eq('user_id', userData.user.id)
+        .eq('provider', identity.provider)
+    }
+
+
     router.refresh()
   }
 

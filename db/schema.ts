@@ -9,6 +9,7 @@ import {
   boolean,
   timestamp,
   jsonb,
+  unique,
 } from 'drizzle-orm/pg-core'
 
 // ==============================
@@ -95,26 +96,26 @@ export const userAgreements = pgTable('user_agreements', {
 // user_identities
 // ==============================
 
-export const userIdentities = pgTable('user_identities', {
-  id: uuid('id').primaryKey(),
-
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-
-  provider: identityProviderEnum('provider').notNull(),
-
-  providerUserId: varchar('provider_user_id', { length: 255 }).notNull(),
-  username: varchar('username', { length: 255 }).notNull(),
-
-  isServerJoined: boolean('is_server_joined')
-    .notNull()
-    .default(false),
-
-  updatedAt: timestamp('updated_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-})
+export const userIdentities = pgTable(
+  'user_identities',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    provider: identityProviderEnum('provider').notNull(),
+    providerUserId: varchar('provider_user_id', { length: 255 }).notNull(),
+    username: varchar('username', { length: 255 }).notNull(),
+    isServerJoined: boolean('is_server_joined').notNull().default(false),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userProviderUnique: unique('user_identities_user_id_provider_key').on(
+      table.userId,
+      table.provider
+    ),
+  })
+)
 
 // ==============================
 // user_profiles

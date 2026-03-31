@@ -2,6 +2,7 @@
 import type { User, UserIdentity } from '@supabase/supabase-js'
 import { LinkIdentityButton } from '@/app/(auth)/components/link-identity-button'
 import { UnlinkIdentityButton } from '@/app/(auth)/components/unlink-identity-button'
+import { DiscordServerActions } from '@/app/(auth)/components/discord-server-actions'
 
 
 function pickIdentity(
@@ -30,7 +31,13 @@ function getIdentityDisplay(identity: UserIdentity) {
   return { username, avatarUrl }
 }
 
-export function JoinConnectionSection({ authUser }: { authUser: User }) {
+export function JoinConnectionSection({
+  authUser,
+  canJoinDiscordServer
+}: {
+  authUser: User
+  canJoinDiscordServer: boolean
+}) {
   const identities = authUser.identities ?? []
   const github = pickIdentity(identities, 'github')
   const discord = pickIdentity(identities, 'discord')
@@ -100,7 +107,9 @@ export function JoinConnectionSection({ authUser }: { authUser: User }) {
                     <div className="h-6 w-6 rounded-full bg-muted" />
                   )}
                   <span>{username ?? '（ユーザー名不明）'}</span>
+                  <DiscordServerActions disabled={!canJoinDiscordServer} />
                 </div>
+
               )
             })()
           ) : (

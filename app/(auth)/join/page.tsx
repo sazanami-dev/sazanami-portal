@@ -35,6 +35,12 @@ export default async function JoinPage() {
   if (appUserErr) {
     redirect('/error')
   }
+  const { data: discordIdentity } = await supabase
+  .from('user_identities')
+  .select('is_server_joined')
+  .eq('user_id', authUser.id)
+  .eq('provider', 'discord')
+  .maybeSingle()
 
   // 状態判定
   type State = 'unregistered' | 'pending' | 'renewing' | 'active'
@@ -61,7 +67,9 @@ export default async function JoinPage() {
   const identities = authUser.identities ?? []
   const hasGithub = identities.some((i) => i.provider === 'github')
   const hasDiscord = identities.some((i) => i.provider === 'discord')
-  const allConnected = hasGithub && hasDiscord
+  const isDiscordServerJoined = !!discordIdentity?.is_server_joined
+
+  const allConnected = hasGithub && hasDiscord && isDiscordServerJoined
 
   // ステップ定義
   const steps: Step[] = (() => {
@@ -121,7 +129,7 @@ export default async function JoinPage() {
         {state === 'pending' && appUser && (
           <>
             <JoinPendingSection authUser={authUser} appUser={appUser} />
-            <JoinConnectionSection authUser={authUser} />
+            <JoinConnectionSection authUser={authUser} canJoinDiscordServer={false} />
           </>
         )}
 
@@ -134,7 +142,7 @@ export default async function JoinPage() {
         {state === 'active' && appUser && (
           <>
             {!allConnected && (
-              <JoinConnectionSection authUser={authUser} />
+              <JoinConnectionSection authUser={authUser} canJoinDiscordServer={true} />
             )}
             {allConnected && (
               <JoinCompletedSection authUser={authUser} appUser={appUser} />

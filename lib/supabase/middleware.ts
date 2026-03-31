@@ -65,22 +65,25 @@ export async function updateSession(request: NextRequest) {
 
     // identity 判定のために auth user を取得
     const { data: userData, error: userErr } = await supabase.auth.getUser()
-    const identities = userData?.user?.identities ?? []
+
 
     const hasRegistration = !!appUser
     const isActive = appUser?.status === 'active'
 
-    const hasGithub = identities.some((i) => i.provider === 'github')
-    const hasDiscord = identities.some((i) => i.provider === 'discord')
-    const { data: discordIdentity } = await supabase
+    const { data: identityRows } = await supabase
       .from('user_identities')
-      .select('is_server_joined')
+      .select('provider,is_server_joined')
       .eq('user_id', userId)
-      .eq('provider', 'discord')
-      .maybeSingle()
 
+    const githubIdentity = identityRows?.find((r) => r.provider === 'github')
+    const discordIdentity = identityRows?.find((r) => r.provider === 'discord')
+    const hasGithub = !!githubIdentity
+    const hasDiscord = !!discordIdentity
     const isDiscordServerJoined = !!discordIdentity?.is_server_joined
-    const hasRequiredLinks = hasGithub && hasDiscord //&& isDiscordServerJoined
+    const hasRequiredLinks =
+      hasGithub &&
+      hasDiscord &&
+      isDiscordServerJoined
 
     const hasUnfinishedTasks =
       !hasRegistration || !isActive || !hasRequiredLinks
@@ -90,6 +93,7 @@ export async function updateSession(request: NextRequest) {
       pathname.startsWith('/join/') ||
       pathname.startsWith('/signin') ||
       pathname.startsWith('/api/auth') ||
+      pathname.startsWith('/api/discord') ||
       pathname.startsWith('/error')
 
     // やり残しがあるのに /join 以外へ行こうとしたら /join へ
