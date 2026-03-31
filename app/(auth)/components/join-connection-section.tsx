@@ -3,6 +3,7 @@ import type { User, UserIdentity } from '@supabase/supabase-js'
 import { LinkIdentityButton } from '@/app/(auth)/components/link-identity-button'
 import { UnlinkIdentityButton } from '@/app/(auth)/components/unlink-identity-button'
 import { DiscordServerActions } from '@/app/(auth)/components/discord-server-actions'
+import { GitHubOrgActions } from '@/app/(auth)/components/github-org-action'
 
 
 function pickIdentity(
@@ -33,10 +34,10 @@ function getIdentityDisplay(identity: UserIdentity) {
 
 export function JoinConnectionSection({
   authUser,
-  canJoinDiscordServer
+  canJoinOrg
 }: {
   authUser: User
-  canJoinDiscordServer: boolean
+  canJoinOrg: boolean
 }) {
   const identities = authUser.identities ?? []
   const github = pickIdentity(identities, 'github')
@@ -107,9 +108,7 @@ export function JoinConnectionSection({
                     <div className="h-6 w-6 rounded-full bg-muted" />
                   )}
                   <span>{username ?? '（ユーザー名不明）'}</span>
-                  <DiscordServerActions disabled={!canJoinDiscordServer} />
                 </div>
-
               )
             })()
           ) : (
@@ -124,6 +123,12 @@ export function JoinConnectionSection({
           </LinkIdentityButton>
         )}
       </div>
+      {discord && (
+        <DiscordServerActions disabled={!canJoinOrg} />
+      )}
+      {github &&(
+        <GitHubOrgActions disabled={!canJoinOrg} />
+      )}
     </div>
   )
 }

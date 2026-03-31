@@ -80,10 +80,12 @@ export async function updateSession(request: NextRequest) {
     const hasGithub = !!githubIdentity
     const hasDiscord = !!discordIdentity
     const isDiscordServerJoined = !!discordIdentity?.is_server_joined
+    const isGitHubOrgJoined = !!githubIdentity?.is_server_joined
     const hasRequiredLinks =
       hasGithub &&
       hasDiscord &&
-      isDiscordServerJoined
+      isDiscordServerJoined &&
+      isGitHubOrgJoined
 
     const hasUnfinishedTasks =
       !hasRegistration || !isActive || !hasRequiredLinks
@@ -94,6 +96,7 @@ export async function updateSession(request: NextRequest) {
       pathname.startsWith('/signin') ||
       pathname.startsWith('/api/auth') ||
       pathname.startsWith('/api/discord') ||
+      pathname.startsWith('/api/github') ||
       pathname.startsWith('/error')
 
     // やり残しがあるのに /join 以外へ行こうとしたら /join へ

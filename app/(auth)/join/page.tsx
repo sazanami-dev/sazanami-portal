@@ -35,12 +35,12 @@ export default async function JoinPage() {
   if (appUserErr) {
     redirect('/error')
   }
-  const { data: discordIdentity } = await supabase
-  .from('user_identities')
-  .select('is_server_joined')
-  .eq('user_id', authUser.id)
-  .eq('provider', 'discord')
-  .maybeSingle()
+  const { data: identityRows } = await supabase
+      .from('user_identities')
+      .select('provider,is_server_joined')
+      .eq('user_id', authUser.id)
+    const githubIdentity = identityRows?.find((r) => r.provider === 'github')
+    const discordIdentity = identityRows?.find((r) => r.provider === 'discord')
 
   // 状態判定
   type State = 'unregistered' | 'pending' | 'renewing' | 'active'
@@ -64,12 +64,14 @@ export default async function JoinPage() {
     ''
 
   // 連携済みか判定
+  
   const identities = authUser.identities ?? []
   const hasGithub = identities.some((i) => i.provider === 'github')
   const hasDiscord = identities.some((i) => i.provider === 'discord')
   const isDiscordServerJoined = !!discordIdentity?.is_server_joined
+  const isGitHubOrgJoined = !!githubIdentity?.is_server_joined
 
-  const allConnected = hasGithub && hasDiscord && isDiscordServerJoined
+  const allConnected = hasGithub && hasDiscord && isDiscordServerJoined && isGitHubOrgJoined
 
   // ステップ定義
   const steps: Step[] = (() => {
@@ -129,7 +131,7 @@ export default async function JoinPage() {
         {state === 'pending' && appUser && (
           <>
             <JoinPendingSection authUser={authUser} appUser={appUser} />
-            <JoinConnectionSection authUser={authUser} canJoinDiscordServer={false} />
+            <JoinConnectionSection authUser={authUser} canJoinOrg={false} />
           </>
         )}
 
@@ -142,7 +144,7 @@ export default async function JoinPage() {
         {state === 'active' && appUser && (
           <>
             {!allConnected && (
-              <JoinConnectionSection authUser={authUser} canJoinDiscordServer={true} />
+              <JoinConnectionSection authUser={authUser} canJoinOrg={true} />
             )}
             {allConnected && (
               <JoinCompletedSection authUser={authUser} appUser={appUser} />
