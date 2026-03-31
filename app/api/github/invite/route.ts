@@ -31,25 +31,39 @@ export async function POST() {
   }
 
   const token = await getGitHubInstallationToken()
-
-  const res = await fetch(
-    `https://api.github.com/orgs/${orgName}/memberships/${username}`,
-    {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-      },
-      body: JSON.stringify({ role: 'member' }),
-    }
-  )
-
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '')
-    return NextResponse.json({ error: 'invite_failed', detail }, { status: 502 })
+const headers = {
+  Authorization: `Bearer ${token}`,
+  Accept: 'application/vnd.github+json',
+  'X-GitHub-Api-Version': '2022-11-28',
+}
+// 先にメンバーシップ状態を確認
+const checkRes = await fetch(
+  `https://api.github.com/orgs/${orgName}/memberships/${username}`,
+  { headers }
+)
+// 200 = 既にメンバー or 招待済み → ロールを維持してそのまま返す
+if (checkRes.ok) {
+  const existing = await checkRes.json()
+  return NextResponse.json({
+    state: existing.state,
+    role: existing.role,
+    username,
+    alreadyMember: true,
+  })
+}
+// 404 = 未参加 → 新規招待（member ロールで）
+const inviteRes = await fetch(
+  `https://api.github.com/orgs/${orgName}/memberships/${username}`,
+  {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ role: 'member' }),
   }
-
-  const data = await res.json()
-  return NextResponse.json({ state: data.state, username })
+)
+if (!inviteRes.ok) {
+  const detail = await inviteRes.text().catch(() => '')
+  return NextResponse.json({ error: 'invite_failed', detail }, { status: 502 })
+}
+const data = await inviteRes.json()
+return NextResponse.json({ state: data.state, username, alreadyMember: false })
 }
