@@ -19,7 +19,6 @@ export default function InputEditor({ text, onChange, placeholder, scrollRef, on
     const start = ta.selectionStart
     const end = ta.selectionEnd
     const tab = "  " 
-
     const newPos = start + tab.length
     onChange(value.slice(0, start) + tab + value.slice(end))
     requestAnimationFrame(() => {
