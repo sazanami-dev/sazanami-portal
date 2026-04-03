@@ -9,7 +9,7 @@ export function GitHubOrgActions({ disabled }: { disabled?: boolean }) {
   const [loadingInvite, setLoadingInvite] = useState(false)
   const [loadingVerify, setLoadingVerify] = useState(false)
   const [message, setMessage] = useState('')
-
+  //GitHubOrgに招待
   const invite = async () => {
     setLoadingInvite(true)
     setMessage('')
@@ -30,7 +30,7 @@ export function GitHubOrgActions({ disabled }: { disabled?: boolean }) {
       setLoadingInvite(false)
     }
   }
-
+  // GitHubに参加しているかの検証 
   const verify = async () => {
     setLoadingVerify(true)
     setMessage('')

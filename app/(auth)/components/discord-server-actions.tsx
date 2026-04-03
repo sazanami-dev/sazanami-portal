@@ -11,6 +11,7 @@ export function DiscordServerActions({ disabled }: { disabled?: boolean }) {
   const [loadingVerify, setLoadingVerify] = useState(false)
   const [message, setMessage] = useState<string>('')
 
+  // 招待URLの発行
   const createInvite = async () => {
     setLoadingInvite(true)
     setMessage('')
@@ -22,13 +23,14 @@ export function DiscordServerActions({ disabled }: { disabled?: boolean }) {
         return
       }
       setInviteUrl(json.inviteUrl)
-      // すぐ参加できるように新規タブで開く
+      // 招待URLを新規タブで開く
       window.open(json.inviteUrl, '_blank', 'noopener,noreferrer')
     } finally {
       setLoadingInvite(false)
     }
   }
 
+  // discordに招待されているかどうかの検証と、memberロールの付与
   const verifyAndGrantRole = async () => {
     setLoadingVerify(true)
     setMessage('')
@@ -40,7 +42,7 @@ export function DiscordServerActions({ disabled }: { disabled?: boolean }) {
         setMessage('参加確認またはロール付与に失敗しました')
         return
       }
-
+      
       if (json.joined && json.roleGranted) {
           if (json.alreadyHadRole) {
             setMessage('Discord参加済み・ロール付与済みです')

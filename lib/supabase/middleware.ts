@@ -42,7 +42,6 @@ export async function updateSession(request: NextRequest) {
   const claims = data?.claims
   const pathname = request.nextUrl.pathname
 
-  // A) 未ログインは既存のガード（例外パスは通す）
   if (
     !claims &&
     !pathname.startsWith('/signin') &&
@@ -54,7 +53,6 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // B) ログイン済みなら「やり残し」判定をして /join へ寄せる
   const userId = claims?.sub
   if (userId) {
     const { data: appUser, error: appUserErr } = await supabase
