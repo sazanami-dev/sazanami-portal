@@ -22,13 +22,23 @@ function inferClassAndAttendance(displayName: string): {
   className: string | null
   attendanceNumber: number | null
 } {
-  const m = displayName.match(/^([A-Za-z0-9]{3})-(\d{2})/)
-  if (!m) return { className: null, attendanceNumber: null }
-  return { className: m[1], attendanceNumber: Number(m[2]) }
+  //　先頭にクラス
+  const headMatch = displayName.match(/^([A-Z]{2}\d)-(\d{2})/)
+  if (headMatch) {
+    return { className: headMatch[1], attendanceNumber: Number(headMatch[2]) }
+  }
+  // 末尾にクラス
+  const tailMatch = displayName.match(/([A-Z]{2}\d)-(\d{2})$/)
+  if (tailMatch) {
+    return { className: tailMatch[1], attendanceNumber: Number(tailMatch[2]) }
+  }
+  return { className: null, attendanceNumber: null }
 }
-
 function normalizeName(displayName: string): string {
-  return displayName.replace(/^[A-Za-z0-9]{3}-\d{2}\s*/, '').trim()
+  return displayName
+    .replace(/^[A-Z]{2}\d-\d{2}\s*/, '')   // 先頭のクラス-番号を除去
+    .replace(/\s*[A-Z]{2}\d-\d{2}$/, '')    // 末尾のクラス-番号を除去
+    .trim()
 }
 
 function calcExpectedGraduationYear(
@@ -42,17 +52,26 @@ function calcExpectedGraduationYear(
   const plus =
     head === 'N'
       ? 4
-      : head === 'S' || head === 'G'
+      : head === 'S' || head === 'G' || head === 'A'
         ? 3
-        : head === 'J' || head === 'T' || head === 'W'
+        : head === 'J' || head === 'T' || head === 'W' || head === 'C'
           ? 2
           : null
 
   return plus ? admissionYear + plus : null
 }
 
-const CLASS_OPTIONS = ['SS1', 'SS2', 'SS3', 'GS1', 'NS1', 'JT1', 'TW1'] as const
-const ATTENDANCE_OPTIONS = Array.from({ length: 50 }, (_, i) => i + 1)
+const CLASS_OPTIONS = [
+  'NF1', 'NS1', 'NT1', 'NV1',
+  'SF1', 'SF2', 'SS1', 'SS2', 'ST1', 'ST2',
+  'JF1', 'JS1',
+  'TF1', 'TS1',
+  'GF1', 'GF2', 'GF3', 'GS1', 'GS2', 'GS3', 'GT1', 'GT2', 'GT3',
+  'AF1', 'AF2', 'AS1', 'AS2', 'AT1', 'AT2',
+  'WF1', 'WS1',
+  'CF1', 'CS1',
+] as const
+const ATTENDANCE_OPTIONS = Array.from({ length: 40 }, (_, i) => i + 1)
 
 type SignupFormProps = {
   /** 登録完了後に遷移したいパス（例: '/pending' や '/join'） */
@@ -69,12 +88,16 @@ export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
   const [email, setEmail] = useState('')
   const [displayName, setDisplayName] = useState('')
 
-  const studentId = useMemo(() => extractStudentIdFromEmail(email) ?? '', [email])
+  const isItEmail = /^it\d{6}@/i.test(email)
+  const extractedStudentId = extractStudentIdFromEmail(email)
+  const [studentId, setStudentId] = useState('')
 
   const [className, setClassName] = useState('')
   const [attendanceNumber, setAttendanceNumber] = useState<number | ''>('')
-  const [name, setName] = useState('')
-  const [nameKana, setNameKana] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastNameKana, setLastNameKana] = useState('')
+  const [firstNameKana, setFirstNameKana] = useState('')
   const [expectedGraduationYear, setExpectedGraduationYear] = useState<number | ''>('')
 
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -100,7 +123,18 @@ export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
 
       setEmail(e)
       setDisplayName(dn)
-      setName(normalizeName(dn))
+      // it メールなら学籍番号を自動抽出
+      const extracted = extractStudentIdFromEmail(e)
+      if (extracted) setStudentId(extracted)
+      // 名前をスペースで姓・名に分割
+      const normalized = normalizeName(dn)
+      const parts = normalized.split(' ').filter(Boolean)
+      if (parts.length >= 2) {
+        setLastName(parts[0])
+        setFirstName(parts.slice(1).join(' '))
+      } else {
+        setLastName(normalized)
+      }
 
       const inf = inferClassAndAttendance(dn)
       if (inf.className) setClassName(inf.className)
@@ -148,8 +182,8 @@ export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
       setSubmitting(false)
       return
     }
-    if (!studentId) {
-      setSubmitError('student_id を email から抽出できません')
+    if (!studentId.trim()) {
+      setSubmitError('学籍番号を入力してください')
       setSubmitting(false)
       return
     }
@@ -163,13 +197,13 @@ export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
       setSubmitting(false)
       return
     }
-    if (!name.trim()) {
-      setSubmitError('name を入力してください')
+    if (!lastName.trim() || !firstName.trim()) {
+      setSubmitError('姓と名を入力してください')
       setSubmitting(false)
       return
     }
-    if (!nameKana.trim()) {
-      setSubmitError('name_kana を入力してください')
+    if (!lastNameKana.trim() || !firstNameKana.trim()) {
+      setSubmitError('カナの姓と名を入力してください')
       setSubmitting(false)
       return
     }
@@ -182,8 +216,8 @@ export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
         studentId,
         className,
         attendanceNumber,
-        name,
-        nameKana,
+        name: `${lastName} ${firstName}`,
+        nameKana: `${lastNameKana} ${firstNameKana}`,
         expectedGraduationYear: expectedGraduationYear === '' ? null : expectedGraduationYear,
       }),
     })
@@ -227,17 +261,24 @@ export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
 
       <div className="space-y-4">
         <div className="space-y-1">
-          <label className="text-sm font-medium">email（変更不可）</label>
+          <label className="text-sm font-medium">メールアドレス（変更不可）</label>
           <input className="w-full rounded border px-3 py-2" value={email} readOnly />
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm font-medium">student_id（変更不可）</label>
-          <input className="w-full rounded border px-3 py-2" value={studentId} readOnly />
+          <label className="text-sm font-medium">
+            学籍番号{isItEmail ? '（メールから自動取得）' : ''}
+          </label>
+          <input
+            className="w-full rounded border px-3 py-2"
+            value={studentId}
+            onChange={(e) => setStudentId(e.target.value)}
+            readOnly={isItEmail}
+          />
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm font-medium">class_name</label>
+          <label className="text-sm font-medium">クラス名</label>
           <select
             className="w-full rounded border px-3 py-2"
             value={className}
@@ -253,7 +294,7 @@ export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm font-medium">attendance_number</label>
+          <label className="text-sm font-medium">出席番号</label>
           <select
             className="w-full rounded border px-3 py-2"
             value={attendanceNumber}
@@ -270,27 +311,46 @@ export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
           </select>
         </div>
 
-        <div className="space-y-1">
-          <label className="text-sm font-medium">name（微調整可）</label>
-          <input
-            className="w-full rounded border px-3 py-2"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-sm font-medium">姓</label>
+            <input
+              className="w-full rounded border px-3 py-2"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">名</label>
+            <input
+              className="w-full rounded border px-3 py-2"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+            />
+          </div>
         </div>
-
-        <div className="space-y-1">
-          <label className="text-sm font-medium">name_kana</label>
-          <input
-            className="w-full rounded border px-3 py-2"
-            value={nameKana}
-            onChange={(e) => setNameKana(e.target.value)}
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-sm font-medium">姓（カナ）</label>
+            <input
+              className="w-full rounded border px-3 py-2"
+              value={lastNameKana}
+              onChange={(e) => setLastNameKana(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">名（カナ）</label>
+            <input
+              className="w-full rounded border px-3 py-2"
+              value={firstNameKana}
+              onChange={(e) => setFirstNameKana(e.target.value)}
+            />
+          </div>
         </div>
 
         <div className="space-y-1">
           <label className="text-sm font-medium">
-            expected_graduation_year（微調整可）
+            卒業年
           </label>
           <input
             className="w-full rounded border px-3 py-2"

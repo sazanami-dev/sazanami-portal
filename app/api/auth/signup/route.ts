@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     expectedGraduationYear: number | null
   }
 
-  // email と studentId はサーバー側でも最低限検証
+  // email と studentId はサーバー側でも検証
   if (!email || email !== (userData.user.email ?? '')) {
     return NextResponse.json({ error: 'email_mismatch' }, { status: 400 })
   }
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
   const userId = userData.user.id
 
-  // 既に登録があるなら弾く（多重登録防止）
+  // 既に登録があるなら弾く（
   const { data: existing } = await supabase
     .from('users')
     .select('id,status')

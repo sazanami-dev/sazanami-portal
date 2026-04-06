@@ -42,7 +42,6 @@ export async function updateSession(request: NextRequest) {
   const claims = data?.claims
   const pathname = request.nextUrl.pathname
 
-  // A) 未ログインは既存のガード（例外パスは通す）
   if (
     !claims &&
     !pathname.startsWith('/signin') &&
@@ -54,7 +53,6 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // B) ログイン済みなら「やり残し」判定をして /join へ寄せる
   const userId = claims?.sub
   if (userId) {
     const { data: appUser, error: appUserErr } = await supabase
@@ -65,22 +63,27 @@ export async function updateSession(request: NextRequest) {
 
     // identity 判定のために auth user を取得
     const { data: userData, error: userErr } = await supabase.auth.getUser()
-    const identities = userData?.user?.identities ?? []
+
 
     const hasRegistration = !!appUser
     const isActive = appUser?.status === 'active'
 
-    const hasGithub = identities.some((i) => i.provider === 'github')
-    const hasDiscord = identities.some((i) => i.provider === 'discord')
-    const { data: discordIdentity } = await supabase
+    const { data: identityRows } = await supabase
       .from('user_identities')
-      .select('is_server_joined')
+      .select('provider,is_server_joined')
       .eq('user_id', userId)
-      .eq('provider', 'discord')
-      .maybeSingle()
 
+    const githubIdentity = identityRows?.find((r) => r.provider === 'github')
+    const discordIdentity = identityRows?.find((r) => r.provider === 'discord')
+    const hasGithub = !!githubIdentity
+    const hasDiscord = !!discordIdentity
     const isDiscordServerJoined = !!discordIdentity?.is_server_joined
-    const hasRequiredLinks = hasGithub && hasDiscord //&& isDiscordServerJoined
+    const isGitHubOrgJoined = !!githubIdentity?.is_server_joined
+    const hasRequiredLinks =
+      hasGithub &&
+      hasDiscord &&
+      isDiscordServerJoined &&
+      isGitHubOrgJoined
 
     const hasUnfinishedTasks =
       !hasRegistration || !isActive || !hasRequiredLinks
@@ -90,6 +93,8 @@ export async function updateSession(request: NextRequest) {
       pathname.startsWith('/join/') ||
       pathname.startsWith('/signin') ||
       pathname.startsWith('/api/auth') ||
+      pathname.startsWith('/api/discord') ||
+      pathname.startsWith('/api/github') ||
       pathname.startsWith('/error')
 
     // やり残しがあるのに /join 以外へ行こうとしたら /join へ
