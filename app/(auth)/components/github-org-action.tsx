@@ -56,7 +56,7 @@ export function GitHubOrgActions({ disabled }: { disabled?: boolean }) {
     <div className="mt-3 space-y-2">
       <div className="flex gap-2">
         <Button onClick={invite} disabled={disabled || loadingInvite}>
-          {loadingInvite ? '送信中…' : 'Org に招待を送信'}
+          {loadingInvite ? '送信中…' : 'Orgの招待を受ける'}
         </Button>
         <Button variant="outline" onClick={verify} disabled={disabled || loadingVerify}>
           {loadingVerify ? '確認中…' : '参加確認'}

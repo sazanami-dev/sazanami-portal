@@ -65,7 +65,7 @@ export function DiscordServerActions({ disabled }: { disabled?: boolean }) {
     <div className="mt-3 space-y-2">
       <div className="flex gap-2">
         <Button onClick={createInvite} disabled={disabled || loadingInvite}>
-          {loadingInvite ? '発行中…' : '招待URLを発行して参加'}
+          {loadingInvite ? '招待URL発行中…' : 'Discordに参加'}
         </Button>
         <Button variant="outline" onClick={verifyAndGrantRole} disabled={disabled || loadingVerify}>
           {loadingVerify ? '確認中…' : '参加確認・ロール付与'}
