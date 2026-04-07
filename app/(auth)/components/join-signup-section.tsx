@@ -1,4 +1,3 @@
-// app/(auth)/components/signup-form.tsx
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -81,9 +80,13 @@ function isItNumberEmail(value: string): boolean {
 type SignupFormProps = {
   /** 登録完了後に遷移したいパス（例: '/pending' や '/join'） */
   afterSuccessPath?: string
+  mode?: 'signup' | 'renewing'
 }
 
-export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
+export function SignupForm({
+  afterSuccessPath = '/pending',
+  mode = 'signup',
+}: SignupFormProps) {
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
 
@@ -152,7 +155,9 @@ export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
 
       const { data: appUser, error: appUserErr } = await supabase
         .from('users')
-        .select('status')
+        .select(
+          'status, email, student_id, class_name, attendance_number, name, name_kana, expected_graduation_year'
+        )
         .eq('id', userData.user.id)
         .maybeSingle()
 
@@ -162,20 +167,63 @@ export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
         return
       }
 
-      if (appUser?.status === 'active') {
-        router.replace('/')
-        return
-      }
-      if (appUser && appUser.status !== 'active') {
-        router.replace('/join')
-        return
+      if (mode === 'signup') {
+        if (appUser?.status === 'active') {
+          router.replace('/')
+          return
+        }
+        if (appUser && appUser.status !== 'active') {
+          router.replace('/join')
+          return
+        }
+      } else {
+        if (!appUser || appUser.status !== 'renewing') {
+          router.replace('/join')
+          return
+        }
+
+        setEmail(appUser.email ?? e)
+        if (appUser.student_id) setStudentId(String(appUser.student_id))
+
+        // Google 表示名にクラス・番号が含まれる場合は、renewing 時もそちらを優先する
+        if (isItAddress && inf.className) {
+          setClassName(inf.className)
+        } else if (appUser.class_name) {
+          setClassName(String(appUser.class_name))
+        }
+        if (inf.attendanceNumber != null) {
+          setAttendanceNumber(inf.attendanceNumber)
+        } else if (appUser.attendance_number != null) {
+          setAttendanceNumber(Number(appUser.attendance_number))
+        }
+        if (appUser.name) {
+          const nameParts = String(appUser.name).split(' ').filter(Boolean)
+          if (nameParts.length >= 2) {
+            setLastName(nameParts[0])
+            setFirstName(nameParts.slice(1).join(' '))
+          } else {
+            setLastName(String(appUser.name))
+          }
+        }
+        if (appUser.name_kana) {
+          const kanaParts = String(appUser.name_kana).split(' ').filter(Boolean)
+          if (kanaParts.length >= 2) {
+            setLastNameKana(kanaParts[0])
+            setFirstNameKana(kanaParts.slice(1).join(' '))
+          } else {
+            setLastNameKana(String(appUser.name_kana))
+          }
+        }
+        if (appUser.expected_graduation_year != null) {
+          setExpectedGraduationYear(Number(appUser.expected_graduation_year))
+        }
       }
 
       setLoadingInit(false)
     }
 
     run()
-  }, [router, supabase])
+  }, [mode, router, supabase])
 
   useEffect(() => {
     if (!email) return
@@ -225,7 +273,9 @@ export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
       return
     }
 
-    const res = await fetch('/api/auth/signup', {
+    const submitPath = mode === 'renewing' ? '/api/auth/renew' : '/api/auth/signup'
+
+    const res = await fetch(submitPath, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -268,9 +318,13 @@ export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold">ユーザー登録</h2>
+        <h2 className="text-lg font-semibold">
+          {mode === 'renewing' ? '登録情報の更新' : 'ユーザー登録'}
+        </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          必要情報を入力してください。登録後は承認待ちになります。
+          {mode === 'renewing'
+            ? '必要情報を確認・更新してください。'
+            : '必要情報を入力してください。登録後は承認待ちになります。'}
         </p>
       </div>
 
@@ -388,7 +442,7 @@ export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
           onClick={onSubmit}
           disabled={submitting}
         >
-          {submitting ? '送信中…' : '登録する'}
+          {submitting ? '送信中…' : mode === 'renewing' ? '更新する' : '登録する'}
         </button>
       </div>
     </div>

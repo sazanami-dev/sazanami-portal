@@ -4,7 +4,6 @@ import { createClient } from '@/lib/supabase/server'
 
 import { SignupForm } from '@/app/(auth)/components/join-signup-section'
 import { JoinPendingSection } from '@/app/(auth)/components/join-pending-section'
-import { JoinRenewingSection } from '@/app/(auth)/components/join-renewing-section'
 import { JoinCompletedSection } from '@/app/(auth)/components/join-completed-section'
 import { JoinConnectionSection } from '@/app/(auth)/components/join-connection-section'
 import { JoinStepList } from '@/app/(auth)/components/join-step-list'
@@ -136,9 +135,7 @@ export default async function JoinPage() {
         )}
 
         {/* renewing → 更新フォーム */}
-        {state === 'renewing' && appUser && (
-          <JoinRenewingSection authUser={authUser} appUser={appUser} />
-        )}
+        {state === 'renewing' && <SignupForm mode="renewing" afterSuccessPath="/join" />}
 
         {/* active → 未連携があれば連携UI、なければ完了 */}
         {state === 'active' && appUser && (

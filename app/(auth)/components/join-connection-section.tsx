@@ -1,4 +1,3 @@
-// app/(auth)/components/join-connection-section.tsx
 import type { User, UserIdentity } from '@supabase/supabase-js'
 import { LinkIdentityButton } from '@/app/(auth)/components/link-identity-button'
 import { UnlinkIdentityButton } from '@/app/(auth)/components/unlink-identity-button'
