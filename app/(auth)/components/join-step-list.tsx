@@ -1,5 +1,3 @@
-// app/(auth)/components/join-step-list.tsx
-
 type Step = {
   label: string
   status: 'done' | 'current' | 'upcoming'

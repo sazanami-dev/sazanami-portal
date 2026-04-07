@@ -1,4 +1,3 @@
-// app/(auth)/components/join-pending-section.tsx
 'use client'
 
 import type { User } from '@supabase/supabase-js'
