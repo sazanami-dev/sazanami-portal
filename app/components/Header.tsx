@@ -19,6 +19,11 @@ const Header = () => {
                 About
               </Link>
             </li>
+            <li>
+              <Link href="/members" className="hover:text-gray-300">
+                Members
+              </Link>
+            </li>
             {/* 必要に応じてリンクを追加 */}
           </ul>
         </nav>

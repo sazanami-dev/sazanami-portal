@@ -38,6 +38,8 @@ export async function POST(request: Request) {
   if (!name || !nameKana) return NextResponse.json({ error: 'name_required' }, { status: 400 })
 
   const userId = userData.user.id
+  const isItAddress = /^it\d{6}@/i.test(email)
+  const normalizedClassName = isItAddress ? className : 'XX0'
 
   // 既に登録があるなら弾く（
   const { data: existing } = await supabase
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
     id: userId,
     email,
     student_id: studentId,
-    class_name: className,
+    class_name: normalizedClassName,
     attendance_number: attendanceNumber,
     name,
     name_kana: nameKana,
