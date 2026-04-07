@@ -72,6 +72,11 @@ const CLASS_OPTIONS = [
   'CF1', 'CS1',
 ] as const
 const ATTENDANCE_OPTIONS = Array.from({ length: 40 }, (_, i) => i + 1)
+const NON_IT_DEFAULT_CLASS = 'XX0'
+
+function isItNumberEmail(value: string): boolean {
+  return /^it\d{6}@/i.test(value)
+}
 
 type SignupFormProps = {
   /** 登録完了後に遷移したいパス（例: '/pending' や '/join'） */
@@ -88,7 +93,7 @@ export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
   const [email, setEmail] = useState('')
   const [displayName, setDisplayName] = useState('')
 
-  const isItEmail = /^it\d{6}@/i.test(email)
+  const isItEmail = isItNumberEmail(email)
   const extractedStudentId = extractStudentIdFromEmail(email)
   const [studentId, setStudentId] = useState('')
 
@@ -123,6 +128,7 @@ export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
 
       setEmail(e)
       setDisplayName(dn)
+      const isItAddress = isItNumberEmail(e)
       // it メールなら学籍番号を自動抽出
       const extracted = extractStudentIdFromEmail(e)
       if (extracted) setStudentId(extracted)
@@ -137,7 +143,11 @@ export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
       }
 
       const inf = inferClassAndAttendance(dn)
-      if (inf.className) setClassName(inf.className)
+      if (!isItAddress) {
+        setClassName(NON_IT_DEFAULT_CLASS)
+      } else if (inf.className) {
+        setClassName(inf.className)
+      }
       if (inf.attendanceNumber) setAttendanceNumber(inf.attendanceNumber)
 
       const { data: appUser, error: appUserErr } = await supabase
@@ -166,6 +176,13 @@ export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
 
     run()
   }, [router, supabase])
+
+  useEffect(() => {
+    if (!email) return
+    if (!isItNumberEmail(email)) {
+      setClassName(NON_IT_DEFAULT_CLASS)
+    }
+  }, [email])
 
   useEffect(() => {
     const admissionYear = admissionYearFromStudentId(studentId)
@@ -283,8 +300,10 @@ export function SignupForm({ afterSuccessPath = '/pending' }: SignupFormProps) {
             className="w-full rounded border px-3 py-2"
             value={className}
             onChange={(e) => setClassName(e.target.value)}
+            disabled={!isItEmail}
           >
             <option value="">選択してください</option>
+            <option value={NON_IT_DEFAULT_CLASS}>{NON_IT_DEFAULT_CLASS}</option>
             {CLASS_OPTIONS.map((c) => (
               <option key={c} value={c}>
                 {c}
