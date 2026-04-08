@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import DOMPurify from "isomorphic-dompurify";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -19,6 +20,8 @@ export default function MarkdownPreview({ text, scrollRef, className }: Props) {
       (_, lead, hyphens) => `${lead}${hyphens[0]}\u200B${hyphens.slice(1)}`
     );
 
+  const sanitized = DOMPurify.sanitize(escapeHyphenLines(text))
+
   return (
     <div 
       ref={scrollRef}
@@ -29,7 +32,7 @@ export default function MarkdownPreview({ text, scrollRef, className }: Props) {
         remarkPlugins={[remarkGfm]} 
         rehypePlugins={[rehypeRaw]}
       >
-        {escapeHyphenLines(text)}
+        {sanitized}
       </ReactMarkdown>
     </div>
   );
