@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createDiscordInvite } from '@/lib/discord/invite'
 
 export async function POST() {
   const supabase = await createClient()
@@ -26,24 +27,18 @@ if (!appUser || appUser.status !== 'active') {
     return NextResponse.json({ error: 'discord_env_missing' }, { status: 500 })
   }
 
-  const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/invites`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bot ${botToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      max_age: process.env.DISCORD_INVITE_MAX_AGE,
-      max_uses: 1,
-      temporary: false,
-      unique: true, // 毎回新規URL
-    }),
+  const inviteResult = await createDiscordInvite({
+    botToken,
+    channelId,
+    maxAge: process.env.DISCORD_INVITE_MAX_AGE,
   })
 
-  const json = await res.json().catch(() => null)
-  if (!res.ok || !json?.code) {
-    return NextResponse.json({ error: 'invite_create_failed', detail: json }, { status: 502 })
+  if (!inviteResult.ok) {
+    return NextResponse.json(
+      { error: 'invite_create_failed', detail: inviteResult.detail },
+      { status: 502 }
+    )
   }
 
-  return NextResponse.json({ inviteUrl: `https://discord.gg/${json.code}` })
+  return NextResponse.json({ inviteUrl: inviteResult.inviteUrl })
 }

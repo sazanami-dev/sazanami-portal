@@ -10,10 +10,12 @@ type Provider = 'github' | 'discord'
 export function LinkIdentityButton({
   provider,
   next = '/connection',
+  disabled = false,
   children,
 }: {
   provider: Provider
   next?: string
+  disabled?: boolean
   children: React.ReactNode
 }) {
   const [loading, setLoading] = useState(false)
@@ -36,7 +38,7 @@ export function LinkIdentityButton({
   }
 
   return (
-    <Button onClick={onClick} disabled={loading}>
+    <Button onClick={onClick} disabled={disabled || loading}>
       {loading ? 'Linking…' : children}
     </Button>
   )
