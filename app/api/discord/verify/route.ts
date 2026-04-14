@@ -1,20 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-
-function pickDiscordUserId(identities: unknown[] | undefined): string | null {
-  const discord = (identities ?? []).find((i) => {
-    const x = i as Record<string, unknown>
-    return x.provider === 'discord'
-  }) as Record<string, unknown> | undefined
-
-  if (!discord) return null
-
-  const d = (discord.identity_data ?? {}) as Record<string, unknown>
-  const cands = [d.sub, d.user_id, discord.provider_id].filter(
-    (v): v is string => typeof v === 'string' && v.length > 0
-  )
-  return cands[0] ?? null
-}
+import {
+  addRoleToMember,
+  getGuildMember,
+  pickDiscordUserId,
+  updateDiscordNickname,
+} from '@/lib/discord/member'
 
 export async function POST() {
   const supabase = await createClient()
@@ -26,7 +17,7 @@ export async function POST() {
 
   const { data: appUser, error: appUserErr } = await supabase
     .from('users')
-    .select('status')
+    .select('status, class_name, name')
     .eq('id', userData.user.id)
     .maybeSingle()
 
@@ -49,37 +40,37 @@ export async function POST() {
     return NextResponse.json({ error: 'discord_not_linked' }, { status: 400 })
   }
 
-  const memberRes = await fetch(
-    `https://discord.com/api/v10/guilds/${guildId}/members/${discordUserId}`,
-    { headers: { Authorization: `Bot ${botToken}` }, cache: 'no-store' }
-  )
-
-  if (memberRes.status === 404) {
+  const memberResult = await getGuildMember({ botToken, guildId, discordUserId })
+  if (!memberResult.found && memberResult.notFound) {
     return NextResponse.json({ joined: false, roleGranted: false }, { status: 200 })
   }
-  if (!memberRes.ok) {
-    const detail = await memberRes.text().catch(() => '')
-    return NextResponse.json({ error: 'member_check_failed', detail }, { status: 502 })
+  if (!memberResult.found) {
+    return NextResponse.json({ error: 'member_check_failed', detail: memberResult.detail }, { status: 502 })
   }
-  const member = await memberRes.json()
-  const currentRoles: string[] = member.roles ?? []
+  const currentRoles: string[] = memberResult.roles
 
-  if (currentRoles.includes(roleId)) {
-    await supabase
-      .from('user_identities')
-      .update({ is_server_joined: true })
-      .eq('user_id', user.id)
-      .eq('provider', 'discord')
-    return NextResponse.json({ joined: true, roleGranted: true, alreadyHadRole: true })
+  const alreadyHadRole = currentRoles.includes(roleId)
+
+  if (!alreadyHadRole) {
+    const roleResult = await addRoleToMember({ botToken, guildId, discordUserId, roleId })
+    if (!roleResult.ok) {
+      const detail = roleResult.detail
+      return NextResponse.json({ error: 'role_assign_failed', detail }, { status: 502 })
+    }
   }
-  const roleRes = await fetch(
-    `https://discord.com/api/v10/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`,
-    { method: 'PUT', headers: { Authorization: `Bot ${botToken}` } }
-  )
 
-  if (!roleRes.ok) {
-    const detail = await roleRes.text().catch(() => '')
-    return NextResponse.json({ error: 'role_assign_failed', detail }, { status: 502 })
+  const nicknameResult = await updateDiscordNickname({
+    botToken,
+    guildId,
+    discordUserId,
+    className: appUser.class_name ?? null,
+    fullName: appUser.name ?? null,
+  })
+  if (!nicknameResult.updated && nicknameResult.reason === 'nickname_update_failed') {
+    return NextResponse.json(
+      { error: 'nickname_update_failed', detail: nicknameResult.detail ?? '' },
+      { status: 502 }
+    )
   }
 
   await supabase
@@ -88,5 +79,11 @@ export async function POST() {
     .eq('user_id', user.id)
     .eq('provider', 'discord')
 
-  return NextResponse.json({ joined: true, roleGranted: true, alreadyHadRole: false })
+  return NextResponse.json({
+    joined: true,
+    roleGranted: true,
+    alreadyHadRole,
+    nicknameUpdated: nicknameResult.updated,
+    nicknameSkippedReason: nicknameResult.updated ? null : nicknameResult.reason,
+  })
 }

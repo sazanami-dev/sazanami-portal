@@ -130,7 +130,12 @@ export default async function JoinPage() {
         {state === 'pending' && appUser && (
           <>
             <JoinPendingSection authUser={authUser} appUser={appUser} />
-            <JoinConnectionSection authUser={authUser} canJoinOrg={false} />
+            <JoinConnectionSection
+              authUser={authUser}
+              canJoinOrg={false}
+              isDiscordJoined={isDiscordServerJoined}
+              isGitHubJoined={isGitHubOrgJoined}
+            />
           </>
         )}
 
@@ -141,7 +146,12 @@ export default async function JoinPage() {
         {state === 'active' && appUser && (
           <>
             {!allConnected && (
-              <JoinConnectionSection authUser={authUser} canJoinOrg={true} />
+              <JoinConnectionSection
+                authUser={authUser}
+                canJoinOrg={true}
+                isDiscordJoined={isDiscordServerJoined}
+                isGitHubJoined={isGitHubOrgJoined}
+              />
             )}
             {allConnected && (
               <JoinCompletedSection authUser={authUser} appUser={appUser} />

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { pickDiscordUserId, updateDiscordNickname } from '@/lib/discord/member'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -74,5 +75,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: updateErr.message }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true }, { status: 200 })
+  const botToken = process.env.DISCORD_BOT_TOKEN
+  const guildId = process.env.DISCORD_GUILD_ID
+  const discordUserId = pickDiscordUserId(userData.user.identities as unknown[] | undefined)
+
+  let nicknameUpdated = false
+  let nicknameSkippedReason: string | null = null
+
+  if (!discordUserId) {
+    nicknameSkippedReason = 'discord_not_linked'
+  } else if (!botToken || !guildId) {
+    nicknameSkippedReason = 'discord_env_missing'
+  } else {
+    const nicknameResult = await updateDiscordNickname({
+      botToken,
+      guildId,
+      discordUserId,
+      className: normalizedClassName,
+      fullName: name,
+    })
+    if (nicknameResult.updated) {
+      nicknameUpdated = true
+    } else {
+      nicknameSkippedReason = nicknameResult.reason
+    }
+  }
+
+  return NextResponse.json(
+    { ok: true, nicknameUpdated, nicknameSkippedReason },
+    { status: 200 }
+  )
 }
