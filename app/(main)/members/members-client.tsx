@@ -558,7 +558,7 @@ export function MembersClient({ viewerRole, viewerId, members }: Props) {
       )}
 
       <div className="overflow-x-auto rounded border">
-        <table className="w-full min-w-[960px] text-sm">
+        <table className="w-full min-w-[1080px] text-sm">
           <thead className="bg-muted">
             <tr>
               <th className="px-2 py-2 text-left">名前</th>
@@ -570,6 +570,8 @@ export function MembersClient({ viewerRole, viewerId, members }: Props) {
               <th className="px-2 py-2 text-left">ロール</th>
               <th className="px-2 py-2 text-left">卒業年</th>
               <th className="px-2 py-2 text-left">状態</th>
+              <th className="px-2 py-2 text-left">会則</th>
+              <th className="px-2 py-2 text-left">TechTrain</th>
               <th className="px-2 py-2 text-left">操作</th>
             </tr>
           </thead>
@@ -585,6 +587,28 @@ export function MembersClient({ viewerRole, viewerId, members }: Props) {
                 <td className="px-2 py-2 text-xs">{r.role}</td>
                 <td className="px-2 py-2">{r.expected_graduation_year ?? '—'}</td>
                 <td className="px-2 py-2">{r.status}</td>
+                <td className="px-2 py-2 text-xs">
+                  {r.tos_agreed ? (
+                    <span className="rounded bg-green-100 px-2 py-0.5 text-green-800">
+                      同意済み
+                    </span>
+                  ) : (
+                    <span className="rounded bg-zinc-100 px-2 py-0.5 text-zinc-700">
+                      未同意
+                    </span>
+                  )}
+                </td>
+                <td className="px-2 py-2 text-xs">
+                  {r.tech_train_agreed ? (
+                    <span className="rounded bg-green-100 px-2 py-0.5 text-green-800">
+                      同意済み
+                    </span>
+                  ) : (
+                    <span className="rounded bg-zinc-100 px-2 py-0.5 text-zinc-700">
+                      未同意
+                    </span>
+                  )}
+                </td>
                 <td className="space-y-1 px-2 py-2 align-top">
                   {canPromoteMemberToManager(viewerRole) &&
                     r.role === 'member' &&

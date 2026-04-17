@@ -24,8 +24,8 @@ export async function POST() {
   if (appUserErr) {
     return NextResponse.json({ error: 'user_status_check_failed' }, { status: 500 })
   }
-  if (!appUser || appUser.status !== 'active') {
-    return NextResponse.json({ error: 'forbidden_until_active' }, { status: 403 })
+  if (!appUser || !['active', 'pending'].includes(appUser.status)) {
+    return NextResponse.json({ error: 'forbidden_status', detail: appUser?.status ?? 'no_user' }, { status: 403 })
   }
 
   const botToken = process.env.DISCORD_BOT_TOKEN
@@ -45,6 +45,7 @@ export async function POST() {
     return NextResponse.json({ joined: false, roleGranted: false }, { status: 200 })
   }
   if (!memberResult.found) {
+    console.error('[discord/verify] getGuildMember failed:', memberResult.detail)
     return NextResponse.json({ error: 'member_check_failed', detail: memberResult.detail }, { status: 502 })
   }
   const currentRoles: string[] = memberResult.roles
@@ -54,8 +55,8 @@ export async function POST() {
   if (!alreadyHadRole) {
     const roleResult = await addRoleToMember({ botToken, guildId, discordUserId, roleId })
     if (!roleResult.ok) {
-      const detail = roleResult.detail
-      return NextResponse.json({ error: 'role_assign_failed', detail }, { status: 502 })
+      console.error('[discord/verify] addRoleToMember failed:', roleResult.detail)
+      return NextResponse.json({ error: 'role_assign_failed', detail: roleResult.detail }, { status: 502 })
     }
   }
 
@@ -67,10 +68,7 @@ export async function POST() {
     fullName: appUser.name ?? null,
   })
   if (!nicknameResult.updated && nicknameResult.reason === 'nickname_update_failed') {
-    return NextResponse.json(
-      { error: 'nickname_update_failed', detail: nicknameResult.detail ?? '' },
-      { status: 502 }
-    )
+    console.warn('[discord/verify] updateDiscordNickname failed (non-fatal):', nicknameResult.detail)
   }
 
   await supabase

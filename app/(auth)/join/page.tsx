@@ -6,6 +6,7 @@ import { SignupForm } from '@/app/(auth)/components/join-signup-section'
 import { JoinPendingSection } from '@/app/(auth)/components/join-pending-section'
 import { JoinCompletedSection } from '@/app/(auth)/components/join-completed-section'
 import { JoinConnectionSection } from '@/app/(auth)/components/join-connection-section'
+import { JoinAgreementSection } from '@/app/(auth)/components/join-agreement-section'
 import { JoinStepList } from '@/app/(auth)/components/join-step-list'
 
 type Step = {
@@ -34,12 +35,26 @@ export default async function JoinPage() {
   if (appUserErr) {
     redirect('/error')
   }
+
+  const { data: agreements } = appUser
+    ? await supabase
+        .from('user_agreements')
+        .select('agreement_type')
+        .eq('user_id', authUser.id)
+        .in('agreement_type', ['terms_of_service', 'tech_train'])
+    : { data: [] }
+
+  const agreedTypes = new Set((agreements ?? []).map((a: { agreement_type: string }) => a.agreement_type))
+  const tosAgreed = agreedTypes.has('terms_of_service')
+  const techTrainAgreed = agreedTypes.has('tech_train')
+  const allAgreed = tosAgreed
+
   const { data: identityRows } = await supabase
-      .from('user_identities')
-      .select('provider,is_server_joined')
-      .eq('user_id', authUser.id)
-    const githubIdentity = identityRows?.find((r) => r.provider === 'github')
-    const discordIdentity = identityRows?.find((r) => r.provider === 'discord')
+    .from('user_identities')
+    .select('provider,is_server_joined')
+    .eq('user_id', authUser.id)
+  const githubIdentity = identityRows?.find((r) => r.provider === 'github')
+  const discordIdentity = identityRows?.find((r) => r.provider === 'discord')
 
   // 状態判定
   type State = 'unregistered' | 'pending' | 'renewing' | 'active'
@@ -78,13 +93,15 @@ export default async function JoinPage() {
       case 'unregistered':
         return [
           { label: 'ユーザー情報を登録する', status: 'current' as const },
+          { label: '会則・情報共有に同意する', status: 'upcoming' as const },
           { label: 'アカウントを連携する（GitHub / Discord）', status: 'upcoming' as const },
           { label: '管理者の承認を待つ', status: 'upcoming' as const },
         ]
       case 'pending':
         return [
           { label: 'ユーザー情報を登録する', status: 'done' as const },
-          { label: 'アカウントを連携する（GitHub / Discord）', status: allConnected ? 'done' as const : 'current' as const },
+          { label: '会則・情報共有に同意する', status: allAgreed ? 'done' as const : 'current' as const },
+          { label: 'アカウントを連携する（GitHub / Discord）', status: allAgreed ? (allConnected ? 'done' as const : 'current' as const) : 'upcoming' as const },
           { label: '管理者の承認を待つ', status: 'current' as const },
         ]
       case 'renewing':
@@ -94,7 +111,8 @@ export default async function JoinPage() {
       case 'active':
         return [
           { label: 'ユーザー情報を登録する', status: 'done' as const },
-          { label: 'アカウントを連携する（GitHub / Discord）', status: allConnected ? 'done' as const : 'current' as const },
+          { label: '会則・情報共有に同意する', status: allAgreed ? 'done' as const : 'current' as const },
+          { label: 'アカウントを連携する（GitHub / Discord）', status: allAgreed ? (allConnected ? 'done' as const : 'current' as const) : 'upcoming' as const },
           { label: '管理者の承認を待つ', status: 'done' as const },
         ]
     }
@@ -103,7 +121,7 @@ export default async function JoinPage() {
   const upcomingSteps = steps.filter((s) => s.status === 'upcoming')
 
   return (
-    <main className="mx-auto max-w-lg p-6 space-y-8">
+    <main className="mx-auto w-full max-w-4xl p-6 space-y-8">
       {/* ウェルカムメッセージ */}
       <section className="space-y-1">
         <h1 className="text-2xl font-bold">
@@ -126,34 +144,41 @@ export default async function JoinPage() {
           <SignupForm afterSuccessPath="/join" />
         )}
 
-        {/* pending → 承認待ちメッセージ + アカウント連携 */}
+        {/* pending → 同意 → 連携 → 承認待ち */}
         {state === 'pending' && appUser && (
           <>
-            <JoinPendingSection authUser={authUser} appUser={appUser} />
-            <JoinConnectionSection
-              authUser={authUser}
-              canJoinOrg={false}
-              isDiscordJoined={isDiscordServerJoined}
-              isGitHubJoined={isGitHubOrgJoined}
-            />
+            {!allAgreed ? (
+              <JoinAgreementSection tosAgreed={tosAgreed} techTrainAgreed={techTrainAgreed} />
+            ) : (
+              <>
+                <JoinPendingSection authUser={authUser} appUser={appUser} />
+                <JoinConnectionSection
+                  authUser={authUser}
+                  canJoinOrg={false}
+                  isDiscordJoined={isDiscordServerJoined}
+                  isGitHubJoined={isGitHubOrgJoined}
+                />
+              </>
+            )}
           </>
         )}
 
         {/* renewing → 更新フォーム */}
         {state === 'renewing' && <SignupForm mode="renewing" afterSuccessPath="/join" />}
 
-        {/* active → 未連携があれば連携UI、なければ完了 */}
+        {/* active → 同意 → 連携 → 完了 */}
         {state === 'active' && appUser && (
           <>
-            {!allConnected && (
+            {!allAgreed ? (
+              <JoinAgreementSection tosAgreed={tosAgreed} techTrainAgreed={techTrainAgreed} />
+            ) : !allConnected ? (
               <JoinConnectionSection
                 authUser={authUser}
                 canJoinOrg={true}
                 isDiscordJoined={isDiscordServerJoined}
                 isGitHubJoined={isGitHubOrgJoined}
               />
-            )}
-            {allConnected && (
+            ) : (
               <JoinCompletedSection authUser={authUser} appUser={appUser} />
             )}
           </>
