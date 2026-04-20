@@ -23,7 +23,7 @@ export async function GET() {
     const version = data?.version ?? null;
     const updated_at = data?.updated_at ?? null;
     
-    let isAdmin = false;
+    let isAuthorized = false;
     try {
       const { data: authData, error: authError } = await supabase.auth.getUser();
       const userId = authData?.user?.id;
@@ -34,14 +34,15 @@ export async function GET() {
           .select("role")
           .eq("id", userId)
           .maybeSingle();
-          
-        isAdmin = appUser?.role === "admin";
+
+        // 編集ボタン許可: admin または developer ロールを許可
+        isAuthorized = appUser?.role === "admin" || appUser?.role === "developer";
       }
     } catch (e) {
       console.error("ユーザー情報の取得に失敗:", e);
     }
 
-    return NextResponse.json({ content, version, updated_at, isAdmin });
+    return NextResponse.json({ content, version, updated_at, isAuthorized });
     
   } catch (err) {
     console.error("GET /api/term/export 予期せぬエラー:", err);

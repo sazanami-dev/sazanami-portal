@@ -1,0 +1,251 @@
+.termRoot {
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0px;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 64px);
+}
+
+.termRoot {
+    padding: 0;
+    box-sizing: border-box;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 64px);
+}
+
+.termRoot[data-mode="input"] .mdPreview {
+    display: none !important;
+}
+
+.termRoot[data-mode="input"] textarea {
+    display: block;
+    width: 100% !important;
+    flex: 1 1 100% !important;
+}
+
+.termRoot[data-mode="preview"] textarea {
+    display: none !important;
+}
+
+.editorPane {
+    background: #080808;
+    box-sizing: border-box;
+    padding: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.previewPane {
+    background: transparent;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.editorPane {
+    overflow: hidden;
+}
+
+.editorPane textarea {
+    overflow-y: auto;
+}
+
+.previewPane {
+    overflow: hidden;
+}
+
+.previewPane .mdPreview {
+    flex: 1 1 0%;
+    min-height: 0;
+    overflow-y: auto;
+    width: 100%;
+}
+
+.termRoot[data-mode="both"] .editorPane,
+.termRoot[data-mode="both"] .previewPane {
+    flex: 1 1 0%;
+    min-width: 0;
+}
+
+.editorPane textarea {
+    background: #000000 !important;
+    color: #d1d5db !important;
+    caret-color: #ffffff !important;
+    outline: none !important;
+    border: none !important;
+}
+
+.editorPane textarea::placeholder {
+    color: rgba(209, 213, 219, 0.6) !important;
+}
+
+.editorPane textarea::-webkit-scrollbar {
+    width: 14px;
+    background: transparent;
+}
+
+.editorPane textarea::-webkit-scrollbar-track {
+    background: #000000;
+}
+
+.editorPane textarea::-webkit-scrollbar-thumb {
+    background: #9ca3af;
+    border-radius: 7px;
+    border: 3px solid #000000;
+}
+
+.previewPane .mdPreview {
+    scrollbar-width: thin;
+    scrollbar-color: #9ca3af #ffffff;
+}
+
+.previewPane .mdPreview::-webkit-scrollbar {
+    width: 14px;
+}
+
+.previewPane .mdPreview::-webkit-scrollbar-track {
+    background: #ffffff;
+}
+
+.previewPane .mdPreview::-webkit-scrollbar-thumb {
+    background: #9ca3af;
+    border-radius: 7px;
+    border: 3px solid #ffffff;
+}
+
+.mdPreview h1 {
+    font-size: 3.5rem;
+    font-weight: 700;
+    margin: 0.25rem 0 0.25rem 0;
+}
+
+.mdPreview h2 {
+    font-size: 3rem;
+    font-weight: 600;
+    margin: 0.25rem 0 0.25rem 0;
+}
+
+.mdPreview h3 {
+    font-size: 2.5rem;
+    font-weight: 600;
+    margin: 0.25rem 0 0.25rem 0;
+}
+
+.mdPreview h4 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin: 0.25rem 0 0.25rem 0;
+}
+
+.mdPreview h5 {
+    font-size: 1.6rem;
+    font-weight: 600;
+    margin: 0.25rem 0 0.25rem 0;
+}
+
+.controlsBox {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(2, 6, 23, 0.08);
+}
+
+.modeButton {
+    padding: 6px 12px;
+    background: #e5e7eb;
+    color: inherit;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: box-shadow 0.12s ease, background-color 0.12s ease;
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1;
+}
+
+.modeButton:hover {
+    transform: none;
+    box-shadow: 0 14px 36px rgba(37, 99, 235, 0.20), 0 4px 12px rgba(2, 6, 23, 0.06);
+}
+
+.modeActive {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.14);
+}
+
+.editorPane textarea::-webkit-scrollbar-button {
+    display: none;
+    height: 0;
+}
+
+.previewPane .mdPreview::-webkit-scrollbar-button {
+    display: none;
+    height: 0;
+}
+
+@media (max-width: 480px) {
+    .controlsBox {
+        padding: 6px;
+        gap: 6px;
+    }
+
+    .modeButton {
+        padding: 4px 8px;
+        font-size: 0.9rem;
+    }
+}
+
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.modal {
+    background: white;
+    padding: 16px;
+    border-radius: 8px;
+    width: 360px;
+    box-shadow: 0 12px 40px rgba(2, 6, 23, 0.2);
+}
+
+.modal h3 {
+    margin: 0 0 8px 0;
+    font-size: 1.1rem
+}
+
+.modal p {
+    margin: 0 0 12px 0;
+    color: #374151
+}
+
+.modalActions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 12px
+}
+
+.modalInput {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    box-sizing: border-box
+}
