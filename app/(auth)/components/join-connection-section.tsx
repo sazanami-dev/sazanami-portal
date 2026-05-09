@@ -44,8 +44,9 @@ export function JoinConnectionSection({
   const identities = authUser.identities ?? []
   const github = pickIdentity(identities, 'github')
   const discord = pickIdentity(identities, 'discord')
-  const shouldShowDiscordStep = !isDiscordJoined
-  const shouldShowGitHubStep = isDiscordJoined && !isGitHubJoined
+  const hasBothLinked = Boolean(discord && github)
+  const shouldShowDiscordAction = hasBothLinked && !isDiscordJoined
+  const shouldShowGitHubAction = hasBothLinked && !isGitHubJoined
 
   return (
     <div className="space-y-4">
@@ -56,90 +57,99 @@ export function JoinConnectionSection({
         </p>
       </div>
 
-      {shouldShowDiscordStep && (
-        <>
-          {/* Discord */}
-          <div className="flex items-center justify-between rounded border p-4">
-            <div>
-              <div className="font-medium">Discord</div>
-              {discord ? (
-                (() => {
-                  const { username, avatarUrl } = getIdentityDisplay(discord)
-                  return (
-                    <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                      {avatarUrl ? (
-                        <img
-                          src={avatarUrl}
-                          alt=""
-                          className="h-6 w-6 rounded-full"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <div className="h-6 w-6 rounded-full bg-muted" />
-                      )}
-                      <span>{username ?? '（ユーザー名不明）'}</span>
-                    </div>
-                  )
-                })()
-              ) : (
-                <div className="text-xs text-muted-foreground">未連携</div>
-              )}
-            </div>
-            {discord ? (
-              <UnlinkIdentityButton identity={discord} />
-            ) : (
-              <LinkIdentityButton provider="discord" next="/join">
-                Discord を連携
-              </LinkIdentityButton>
-            )}
-          </div>
-          {discord && (
-            <JoinPlatformActions disabled={!canJoinOrg} step="discord" />
+      {/* Discord */}
+      <div className="flex items-center justify-between rounded border p-4">
+        <div>
+          <div className="font-medium">Discord</div>
+          {discord ? (
+            (() => {
+              const { username, avatarUrl } = getIdentityDisplay(discord)
+              return (
+                <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt=""
+                      className="h-6 w-6 rounded-full"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="h-6 w-6 rounded-full bg-muted" />
+                  )}
+                  <span>{username ?? '（ユーザー名不明）'}</span>
+                </div>
+              )
+            })()
+          ) : (
+            <div className="text-xs text-muted-foreground">未連携</div>
           )}
-        </>
-      )}
+        </div>
+        {discord ? (
+          <UnlinkIdentityButton identity={discord} />
+        ) : (
+          <LinkIdentityButton provider="discord" next="/join">
+            Discord を連携
+          </LinkIdentityButton>
+        )}
+      </div>
 
-      {shouldShowGitHubStep && (
-        <>
-          {/* GitHub */}
-          <div className="flex items-center justify-between rounded border p-4">
-            <div>
-              <div className="font-medium">GitHub</div>
-              {github ? (
-                (() => {
-                  const { username, avatarUrl } = getIdentityDisplay(github)
-                  return (
-                    <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                      {avatarUrl ? (
-                        <img
-                          src={avatarUrl}
-                          alt=""
-                          className="h-6 w-6 rounded-full"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <div className="h-6 w-6 rounded-full bg-muted" />
-                      )}
-                      <span>{username ?? '（ユーザー名不明）'}</span>
-                    </div>
-                  )
-                })()
-              ) : (
-                <div className="text-xs text-muted-foreground">未連携</div>
-              )}
-            </div>
-            {github ? (
-              <UnlinkIdentityButton identity={github} />
-            ) : (
-              <LinkIdentityButton provider="github" next="/join">
-                GitHub を連携
-              </LinkIdentityButton>
-            )}
-          </div>
-          {github && (
-            <JoinPlatformActions disabled={!canJoinOrg} step="github" />
+      {/* GitHub */}
+      <div className="flex items-center justify-between rounded border p-4">
+        <div>
+          <div className="font-medium">GitHub</div>
+          {github ? (
+            (() => {
+              const { username, avatarUrl } = getIdentityDisplay(github)
+              return (
+                <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt=""
+                      className="h-6 w-6 rounded-full"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="h-6 w-6 rounded-full bg-muted" />
+                  )}
+                  <span>{username ?? '（ユーザー名不明）'}</span>
+                </div>
+              )
+            })()
+          ) : (
+            <div className="text-xs text-muted-foreground">未連携</div>
           )}
-        </>
+        </div>
+        {github ? (
+          <UnlinkIdentityButton identity={github} />
+        ) : (
+          <LinkIdentityButton provider="github" next="/join">
+            GitHub を連携
+          </LinkIdentityButton>
+        )}
+      </div>
+
+      {hasBothLinked ? (
+        (shouldShowDiscordAction || shouldShowGitHubAction) ? (
+          <div className="space-y-2 rounded border p-4">
+            <div className="text-sm font-medium">プラットフォーム参加</div>
+            <JoinPlatformActions
+              disabled={!canJoinOrg}
+              needsDiscord={shouldShowDiscordAction}
+              needsGitHub={shouldShowGitHubAction}
+            />
+          </div>
+        ) : (
+          <div className="rounded border p-4">
+            <p className="text-sm text-muted-foreground">
+              Discord・GitHub ともに参加済みです。
+            </p>
+          </div>
+        )
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Discord と GitHub の両方を連携すると、Discord参加とGitHub招待のボタンが表示されます。
+        </p>
       )}
     </div>
   )

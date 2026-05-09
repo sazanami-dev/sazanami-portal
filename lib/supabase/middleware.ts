@@ -85,14 +85,26 @@ export async function updateSession(request: NextRequest) {
       isDiscordServerJoined &&
       isGitHubOrgJoined
 
+    let hasAgreements = false
+    if (hasRegistration) {
+      const { data: tosAgreement } = await supabase
+        .from('user_agreements')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('agreement_type', 'terms_of_service')
+        .maybeSingle()
+      hasAgreements = !!tosAgreement
+    }
+
     const hasUnfinishedTasks =
-      !hasRegistration || !isActive || !hasRequiredLinks
+      !hasRegistration || !isActive || !hasAgreements || !hasRequiredLinks
 
     const isAllowedPath =
       pathname === '/join' ||
       pathname.startsWith('/join/') ||
       pathname.startsWith('/signin') ||
       pathname.startsWith('/api/auth') ||
+      pathname.startsWith('/api/agreement') ||
       pathname.startsWith('/api/discord') ||
       pathname.startsWith('/api/github') ||
       pathname.startsWith('/error')

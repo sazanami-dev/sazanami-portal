@@ -19,9 +19,11 @@ export function LinkIdentityButton({
   children: React.ReactNode
 }) {
   const [loading, setLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const onClick = async () => {
     setLoading(true)
+    setErrorMessage(null)
 
     const supabase = createClient()
     const { error } = await supabase.auth.linkIdentity({
@@ -32,14 +34,17 @@ export function LinkIdentityButton({
     })
 
     if (error) {
-      console.error(error)
       setLoading(false)
+      setErrorMessage('連携に失敗しました。もう一度お試しください。')
     }
   }
 
   return (
-    <Button onClick={onClick} disabled={disabled || loading}>
-      {loading ? 'Linking…' : children}
-    </Button>
+    <div className="space-y-1">
+      <Button onClick={onClick} disabled={disabled || loading}>
+        {loading ? 'Linking…' : children}
+      </Button>
+      {errorMessage && <p className="text-xs text-destructive">{errorMessage}</p>}
+    </div>
   )
 }

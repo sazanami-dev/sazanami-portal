@@ -17,8 +17,8 @@ export async function POST() {
 if (appUserErr) {
   return NextResponse.json({ error: 'user_status_check_failed' }, { status: 500 })
 }
-if (!appUser || appUser.status !== 'active') {
-  return NextResponse.json({ error: 'forbidden_until_active' }, { status: 403 })
+if (!appUser || !['active', 'pending'].includes(appUser.status)) {
+  return NextResponse.json({ error: 'forbidden_status', detail: appUser?.status ?? 'no_user' }, { status: 403 })
 }
 
   const botToken = process.env.DISCORD_BOT_TOKEN
@@ -34,6 +34,7 @@ if (!appUser || appUser.status !== 'active') {
   })
 
   if (!inviteResult.ok) {
+    console.error('[discord/invite] createDiscordInvite failed:', inviteResult.detail)
     return NextResponse.json(
       { error: 'invite_create_failed', detail: inviteResult.detail },
       { status: 502 }

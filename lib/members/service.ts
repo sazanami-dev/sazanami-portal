@@ -19,11 +19,13 @@ export type MemberFullRow = {
   name_kana: string
   expected_graduation_year: number | null
   status: string
+  tos_agreed: boolean
+  tech_train_agreed: boolean
   created_at: string
   updated_at: string
 }
 
-function mapFullRow(r: Record<string, unknown>): MemberFullRow {
+function mapFullRow(r: Record<string, unknown>): Omit<MemberFullRow, 'tos_agreed' | 'tech_train_agreed'> {
   return {
     id: String(r.id),
     role: String(r.role),
@@ -100,9 +102,30 @@ export async function fetchMembersForViewer(viewerId: string): Promise<
     return { ok: true, viewerRole, members: summaries }
   }
 
-  const full: MemberFullRow[] = sorted.map((r) =>
-    mapFullRow(r as Record<string, unknown>)
-  )
+  const userIds = sorted.map((r) => String(r.id))
+  const { data: agreementRows, error: agreementErr } = await admin
+    .from('user_agreements')
+    .select('user_id, agreement_type')
+    .in('user_id', userIds)
+
+  if (agreementErr) {
+    return { ok: false, error: agreementErr.message ?? 'agreement_fetch_failed' }
+  }
+
+  const agreementMap = new Map<string, { tos: boolean; tech: boolean }>()
+  for (const row of agreementRows ?? []) {
+    const r = row as { user_id: string; agreement_type: string }
+    const prev = agreementMap.get(r.user_id) ?? { tos: false, tech: false }
+    if (r.agreement_type === 'terms_of_service') prev.tos = true
+    if (r.agreement_type === 'tech_train') prev.tech = true
+    agreementMap.set(r.user_id, prev)
+  }
+
+  const full: MemberFullRow[] = sorted.map((r) => {
+    const base = mapFullRow(r as Record<string, unknown>)
+    const a = agreementMap.get(base.id) ?? { tos: false, tech: false }
+    return { ...base, tos_agreed: a.tos, tech_train_agreed: a.tech }
+  })
   return { ok: true, viewerRole, members: full }
 }
 

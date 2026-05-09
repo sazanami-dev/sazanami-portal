@@ -26,24 +26,31 @@ async function discordApiRequest({
   method?: 'GET' | 'PUT' | 'PATCH' | 'POST'
   body?: unknown
 }): Promise<DiscordApiResult> {
+  const headers: Record<string, string> = {
+    Authorization: `Bot ${botToken}`,
+    'User-Agent': 'DiscordBot (https://sazanami-portal.vercel.app, 1.0)',
+  }
+  if (method !== 'GET') {
+    headers['Content-Type'] = 'application/json'
+  }
+
   const res = await fetch(`https://discord.com/api/v10${path}`, {
     method,
-    headers: {
-      Authorization: `Bot ${botToken}`,
-      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-    },
+    headers,
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     cache: 'no-store',
   })
 
-  const json = await res.json().catch(() => null)
+  const text = await res.text().catch(() => '')
+  let json: unknown = null
+  try {
+    json = text ? JSON.parse(text) : null
+  } catch {
+    // 204 No Content etc.
+  }
+
   if (!res.ok) {
-    const detail =
-      typeof json === 'string'
-        ? json
-        : json != null
-          ? JSON.stringify(json)
-          : String(res.status)
+    const detail = text || String(res.status)
     return { ok: false, status: res.status, detail }
   }
   return { ok: true, status: res.status, body: json }
