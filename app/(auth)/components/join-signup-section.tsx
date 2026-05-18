@@ -345,7 +345,7 @@ export function SignupForm({
         
         <div className="space-y-2">
           <label className="text-sm font-medium">メールアドレス（変更不可）</label>
-          <Input value={email} readOnly className="bg-muted/50" />
+          <Input value={email} readOnly className="bg-muted/50 h-12" />
         </div>
 
         <div className="space-y-2">
@@ -356,51 +356,56 @@ export function SignupForm({
             value={studentId}
             onChange={(e) => setStudentId(e.target.value)}
             readOnly={isItEmail}
-            className={isItEmail ? "bg-muted/50" : ""}
+            className={isItEmail ? "bg-muted/50 h-12" : "h-12"}
           />
         </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium">クラス名</label>
-          <Select
-            value={className || undefined}
-            onValueChange={setClassName}
-            disabled={!isItEmail}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="選択してください" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NON_IT_DEFAULT_CLASS}>
-                {NON_IT_DEFAULT_CLASS}
-              </SelectItem>
-              {CLASS_OPTIONS.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">クラス名</label>
+            <Select
+              value={className || undefined}
+              onValueChange={setClassName}
+              disabled={!isItEmail}
+            >
+              <SelectTrigger
+              className='h-12 w-full'
+              >
+                <SelectValue placeholder="選択してください" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NON_IT_DEFAULT_CLASS}>
+                  {NON_IT_DEFAULT_CLASS}
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+                {CLASS_OPTIONS.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium">出席番号</label>
-          <Select
-            value={attendanceNumber !== '' ? String(attendanceNumber) : undefined}
-            onValueChange={(val) => setAttendanceNumber(Number(val))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="選択してください" />
-            </SelectTrigger>
-            <SelectContent>
-              {ATTENDANCE_OPTIONS.map((n) => (
-                <SelectItem key={n} value={String(n)}>
-                  {n}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">出席番号</label>
+            <Select
+              value={attendanceNumber !== '' ? String(attendanceNumber) : undefined}
+              onValueChange={(val) => setAttendanceNumber(Number(val))}
+            >
+              <SelectTrigger
+                className='h-12 w-full'
+              >
+                <SelectValue placeholder="選択してください" />
+              </SelectTrigger>
+              <SelectContent>
+                {ATTENDANCE_OPTIONS.map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -408,6 +413,7 @@ export function SignupForm({
             <Input
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
+              className='h-12'
             />
           </div>
           <div className="space-y-2">
@@ -415,6 +421,7 @@ export function SignupForm({
             <Input
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
+              className='h-12'
             />
           </div>
         </div>
@@ -425,6 +432,7 @@ export function SignupForm({
             <Input
               value={lastNameKana}
               onChange={(e) => setLastNameKana(e.target.value)}
+              className='h-12'
             />
           </div>
           <div className="space-y-2">
@@ -432,6 +440,7 @@ export function SignupForm({
             <Input
               value={firstNameKana}
               onChange={(e) => setFirstNameKana(e.target.value)}
+              className='h-12'
             />
           </div>
         </div>
@@ -446,6 +455,7 @@ export function SignupForm({
                 e.target.value ? Number(e.target.value) : ''
               )
             }
+            className='h-12'
           />
         </div>
 
