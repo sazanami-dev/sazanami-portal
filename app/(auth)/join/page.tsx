@@ -193,27 +193,7 @@ export default async function JoinPage() {
 
       </section>
 
-      {/* 残りのやること */}
-      {upcomingSteps.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-muted-foreground">
-            残りのやること
-          </h2>
-          <ul className="space-y-1">
-            {upcomingSteps.map((s) => (
-              <li
-                key={s.label}
-                className="flex items-center gap-2 text-sm text-muted-foreground"
-              >
-                <span className="flex h-5 w-5 items-center justify-center rounded-full border text-xs">
-                  {steps.indexOf(s) + 1}
-                </span>
-                {s.label}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      
     </main>
   )
 }
