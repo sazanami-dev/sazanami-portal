@@ -135,21 +135,16 @@ export default async function JoinPage() {
   return (
     <main className="mx-auto w-full max-w-4xl p-6 space-y-8">
       {/* ウェルカムメッセージ */}
-      <section className="space-y-1">
-        <h1 className="text-2xl font-bold">
+      <section className="space-y-1 flex m-5">
+        <h1 className="text-3xl font-bold w-full text-center">
           {displayName}さん、さざなみ開発へようこそ！
         </h1>
-        <p className="text-sm text-muted-foreground">
-          参加手続きの進捗を確認できます。
-        </p>
       </section>
 
       {/* ステップインジケーター */}
       <JoinStepList steps={steps} />
 
-      {/* 次にやること */}
       <section className="space-y-6">
-        <h2 className="text-lg font-semibold">次にやること</h2>
 
         {/* 未登録 → 登録フォーム */}
         {state === 'unregistered' && (
