@@ -12,7 +12,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import Stepper from '@/components/Stepper'
 
 function extractStudentIdFromEmail(email: string): string | null {
   const local = email.split('@')[0] ?? ''
@@ -329,7 +328,6 @@ export function SignupForm({
 
   return (
     <div className="mx-auto max-w-md p-6 space-y-8">
-      <Stepper currentStep={mode === 'renewing' ? 2 : 1} />
       <div>
         <h2 className="text-xl font-bold tracking-tight">
           {mode === 'renewing' ? '登録情報の更新' : 'ユーザー登録'}
