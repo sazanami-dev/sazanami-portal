@@ -3,6 +3,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import Stepper from '@/components/Stepper'
 
 function extractStudentIdFromEmail(email: string): string | null {
   const local = email.split('@')[0] ?? ''
@@ -26,13 +36,14 @@ function inferClassAndAttendance(displayName: string): {
   if (headMatch) {
     return { className: headMatch[1], attendanceNumber: Number(headMatch[2]) }
   }
-  // 末尾にクラス
+    // 末尾にクラス
   const tailMatch = displayName.match(/([A-Z]{2}\d)-(\d{2})$/)
   if (tailMatch) {
     return { className: tailMatch[1], attendanceNumber: Number(tailMatch[2]) }
   }
   return { className: null, attendanceNumber: null }
 }
+
 function normalizeName(displayName: string): string {
   return displayName
     .replace(/^[A-Z]{2}\d-\d{2}\s*/, '')   // 先頭のクラス-番号を除去
@@ -70,6 +81,7 @@ const CLASS_OPTIONS = [
   'WF1', 'WS1',
   'CF1', 'CS1',
 ] as const
+
 const ATTENDANCE_OPTIONS = Array.from({ length: 40 }, (_, i) => i + 1)
 const NON_IT_DEFAULT_CLASS = 'XX0'
 
@@ -301,7 +313,7 @@ export function SignupForm({
 
   if (loadingInit) {
     return (
-      <div className="mx-auto max-w-lg p-6">
+      <div className="mx-auto max-w-md p-6">
         <p className="text-sm text-muted-foreground">読み込み中…</p>
       </div>
     )
@@ -309,16 +321,17 @@ export function SignupForm({
 
   if (initError) {
     return (
-      <div className="mx-auto max-w-lg p-6">
+      <div className="mx-auto max-w-md p-6">
         <p className="text-sm text-red-600">初期化に失敗しました: {initError}</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-md p-6 space-y-8">
+      <Stepper currentStep={mode === 'renewing' ? 2 : 1} />
       <div>
-        <h2 className="text-lg font-semibold">
+        <h2 className="text-xl font-bold tracking-tight">
           {mode === 'renewing' ? '登録情報の更新' : 'ユーザー登録'}
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -328,105 +341,106 @@ export function SignupForm({
         </p>
       </div>
 
-      {submitError && <p className="text-sm text-red-600">{submitError}</p>}
+      {submitError && <p className="text-sm font-medium text-destructive">{submitError}</p>}
 
-      <div className="space-y-4">
-        <div className="space-y-1">
+      <div className="space-y-6">
+        
+        <div className="space-y-2">
           <label className="text-sm font-medium">メールアドレス（変更不可）</label>
-          <input className="w-full rounded border px-3 py-2" value={email} readOnly />
+          <Input value={email} readOnly className="bg-muted/50" />
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-2">
           <label className="text-sm font-medium">
             学籍番号{isItEmail ? '（メールから自動取得）' : ''}
           </label>
-          <input
-            className="w-full rounded border px-3 py-2"
+          <Input
             value={studentId}
             onChange={(e) => setStudentId(e.target.value)}
             readOnly={isItEmail}
+            className={isItEmail ? "bg-muted/50" : ""}
           />
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-2">
           <label className="text-sm font-medium">クラス名</label>
-          <select
-            className="w-full rounded border px-3 py-2"
-            value={className}
-            onChange={(e) => setClassName(e.target.value)}
+          <Select
+            value={className || undefined}
+            onValueChange={setClassName}
             disabled={!isItEmail}
           >
-            <option value="">選択してください</option>
-            <option value={NON_IT_DEFAULT_CLASS}>{NON_IT_DEFAULT_CLASS}</option>
-            {CLASS_OPTIONS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger>
+              <SelectValue placeholder="選択してください" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NON_IT_DEFAULT_CLASS}>
+                {NON_IT_DEFAULT_CLASS}
+              </SelectItem>
+              {CLASS_OPTIONS.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-2">
           <label className="text-sm font-medium">出席番号</label>
-          <select
-            className="w-full rounded border px-3 py-2"
-            value={attendanceNumber}
-            onChange={(e) =>
-              setAttendanceNumber(e.target.value ? Number(e.target.value) : '')
-            }
+          <Select
+            value={attendanceNumber !== '' ? String(attendanceNumber) : undefined}
+            onValueChange={(val) => setAttendanceNumber(Number(val))}
           >
-            <option value="">選択してください</option>
-            {ATTENDANCE_OPTIONS.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger>
+              <SelectValue placeholder="選択してください" />
+            </SelectTrigger>
+            <SelectContent>
+              {ATTENDANCE_OPTIONS.map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {n}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
             <label className="text-sm font-medium">姓</label>
-            <input
-              className="w-full rounded border px-3 py-2"
+            <Input
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
             />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-2">
             <label className="text-sm font-medium">名</label>
-            <input
-              className="w-full rounded border px-3 py-2"
+            <Input
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
             />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
+        
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
             <label className="text-sm font-medium">姓（カナ）</label>
-            <input
-              className="w-full rounded border px-3 py-2"
+            <Input
               value={lastNameKana}
               onChange={(e) => setLastNameKana(e.target.value)}
             />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-2">
             <label className="text-sm font-medium">名（カナ）</label>
-            <input
-              className="w-full rounded border px-3 py-2"
+            <Input
               value={firstNameKana}
               onChange={(e) => setFirstNameKana(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="space-y-1">
-          <label className="text-sm font-medium">
-            卒業年
-          </label>
-          <input
-            className="w-full rounded border px-3 py-2"
+        <div className="space-y-2">
+          <label className="text-sm font-medium">卒業年</label>
+          <Input
             type="number"
             value={expectedGraduationYear}
             onChange={(e) =>
@@ -437,13 +451,13 @@ export function SignupForm({
           />
         </div>
 
-        <button
-          className="w-full rounded bg-black px-4 py-2 text-white disabled:opacity-50"
+        <Button
+          className="w-full h-12 text-base font-medium mt-4"
           onClick={onSubmit}
           disabled={submitting}
         >
           {submitting ? '送信中…' : mode === 'renewing' ? '更新する' : '登録する'}
-        </button>
+        </Button>
       </div>
     </div>
   )
