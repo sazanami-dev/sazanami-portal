@@ -9,7 +9,7 @@ export type StepItem = {
 
 export function JoinStepList({ steps }: { steps: StepItem[] }) {
   return (
-    <div className="w-full max-w-4xl mx-auto my-10 p-10 bg-[#f5f5f5] rounded-xl">
+    <div className="w-full max-w-4xl mx-auto my-10 p-10  rounded-xl">
       <ol className="flex justify-between items-start w-full">
         {steps.map((step, i) => {
           // 完了(done)または現在地(current)であれば、そこまでのラインやバッジを青くする
