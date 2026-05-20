@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, Clock } from "lucide-react"
+import { JoinPlatformActions } from "./join-platform-actions"
 
 // 状態の型定義
 type ApprovalStatus = "pending" | "approved"
@@ -70,15 +71,12 @@ export default function joinApprovalSection() {
               {/* 必要に応じて追加のメッセージなどを配置 */}
             </CardContent>
             <CardFooter>
-              <Button 
-                className="w-full" 
-                onClick={() => {
-                  // ここに次の画面（ダッシュボードなど）へ遷移する処理を書きます
-                  console.log("ダッシュボードへ遷移")
-                }}
-              >
-                ダッシュボードへ進む
-              </Button>
+              <JoinPlatformActions
+                     disabled={false}
+                     needsDiscord={true}
+                     needsGitHub={true}
+
+              />
             </CardFooter>
           </>
         )}
