@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/client'
 import type { UserIdentity } from '@supabase/supabase-js'
-import { Button } from '@/app/(auth)/components/ui/button'
+import { Button } from '@/components/ui/button'
 
 
 export function UnlinkIdentityButton({ identity }: { identity: UserIdentity }) {
@@ -43,7 +43,9 @@ export function UnlinkIdentityButton({ identity }: { identity: UserIdentity }) {
   return (
     <div className="space-y-1">
       <Button variant="outline" onClick={onClick} disabled={loading}>
-        {loading ? 'Unlinking…' : '連携解除'}
+        <div className="mx-4">
+          {loading ? 'Unlinking…' : '連携解除'}
+        </div>
       </Button>
       {errorMessage && <p className="text-xs text-destructive">{errorMessage}</p>}
     </div>
