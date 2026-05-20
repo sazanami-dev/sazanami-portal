@@ -190,7 +190,7 @@ export function JoinConnectionSection({
         <Button 
           size="auto" 
           disabled={!hasBothLinked} 
-          onClick={handleOpenModal} // ここを handleOpenModal に変更
+          onClick={handleOpenModal}
           className='h-12'
         >
           <div className="mx-12 text-lg">登録</div>
