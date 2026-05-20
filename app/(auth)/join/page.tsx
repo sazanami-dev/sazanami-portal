@@ -158,7 +158,7 @@ export default async function JoinPage() {
               <JoinAgreementSection tosAgreed={tosAgreed} techTrainAgreed={techTrainAgreed} />
             ) : (
               <>
-                <JoinPendingSection authUser={authUser} appUser={appUser} />
+                {/* <JoinPendingSection authUser={authUser} appUser={appUser} /> */}
                 <JoinConnectionSection
                   authUser={authUser}
                   canJoinOrg={false}
