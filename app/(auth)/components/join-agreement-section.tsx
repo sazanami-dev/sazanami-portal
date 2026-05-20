@@ -9,8 +9,8 @@ import {
   CardDescription,
   CardContent,
 } from '@/app/(auth)/components/ui/card'
-import { Checkbox } from '@/app/(auth)/components/ui/checkbox'
-import { Button } from '@/app/(auth)/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Button } from '@/components/ui/button'
 
 export function JoinAgreementSection({
   tosAgreed,

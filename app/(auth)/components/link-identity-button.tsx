@@ -3,7 +3,7 @@
 import { useState } from 'react'
 
 import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/app/(auth)/components/ui/button'
+import { Button } from '@/components/ui/button'
 
 type Provider = 'github' | 'discord'
 
@@ -42,7 +42,9 @@ export function LinkIdentityButton({
   return (
     <div className="space-y-1">
       <Button onClick={onClick} disabled={disabled || loading}>
-        {loading ? 'Linking…' : children}
+        <div className="mx-2">
+          {loading ? 'Linking…' : children}
+        </div>
       </Button>
       {errorMessage && <p className="text-xs text-destructive">{errorMessage}</p>}
     </div>
