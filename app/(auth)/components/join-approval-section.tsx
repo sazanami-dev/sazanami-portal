@@ -43,16 +43,6 @@ export default function JoinApprovalSection({
                 承認が完了すると、すべての機能をご利用いただけるようになります。<br />
               </div>
             </CardContent>
-            <CardFooter className="flex flex-col gap-2">
-              {/* 開発確認用の切り替えボタン（本番では削除してください） */}
-              <Button 
-                variant="outline" 
-                className="w-full" 
-                onClick={() => setStatus("approved")}
-              >
-                （テスト）承認済みに切り替える
-              </Button>
-            </CardFooter>
           </>
         ) : (
           /* =========================================
