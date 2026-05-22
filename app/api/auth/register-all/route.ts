@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { sendPendingApprovalNotification } from '@/lib/discord/notify'
 
 type RegisterAllBody = {
   email: string
@@ -123,6 +124,18 @@ export async function POST(request: Request) {
         },
         { onConflict: 'user_id,provider' }
       )
+  }
+
+  try {
+    await sendPendingApprovalNotification({
+      userId,
+      email,
+      name,
+      studentId,
+      className: normalizedClassName,
+    })
+  } catch (e) {
+    console.error('[register-all] discord notify failed:', e)
   }
 
   return NextResponse.json({ ok: true }, { status: 200 })
