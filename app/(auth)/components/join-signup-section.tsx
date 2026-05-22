@@ -132,10 +132,8 @@ export function SignupForm({
   const [initError, setInitError] = useState<string | null>(null)
 
   const [email, setEmail] = useState('')
-  const [displayName, setDisplayName] = useState('')
 
   const isItEmail = isItNumberEmail(email)
-  const extractedStudentId = extractStudentIdFromEmail(email)
   const [studentId, setStudentId] = useState('')
 
   const [className, setClassName] = useState('')
@@ -168,7 +166,6 @@ export function SignupForm({
         ''
 
       setEmail(e)
-      setDisplayName(dn)
       const isItAddress = isItNumberEmail(e)
       // it メールなら学籍番号を自動抽出
       const extracted = extractStudentIdFromEmail(e)

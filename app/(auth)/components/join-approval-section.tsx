@@ -81,12 +81,7 @@ export default function JoinApprovalSection({
               </div>
             </CardContent>
             <CardFooter>
-              <JoinPlatformActions
-                     disabled={false}
-                     needsDiscord={true}
-                     needsGitHub={true}
-
-              />
+              <JoinPlatformActions />
             </CardFooter>
           </>
         )}

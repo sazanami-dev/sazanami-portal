@@ -3,9 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
 import { SignupForm } from '@/app/(auth)/components/join-signup-section'
-import { JoinPendingSection } from '@/app/(auth)/components/join-pending-section'
 import { JoinCompletedSection } from '@/app/(auth)/components/join-completed-section'
-import { JoinConnectionSection } from '@/app/(auth)/components/join-connection-section'
 import { JoinAgreementSection } from '@/app/(auth)/components/join-agreement-section'
 import JoinApprovalSection from '@/app/(auth)/components/join-approval-section'
 import { JoinStepList, type StepItem } from '@/app/(auth)/components/join-step-list'
@@ -131,8 +129,6 @@ export default async function JoinPage() {
         ]
     }
   })()
-
-  const upcomingSteps = steps.filter((s) => s.status === 'upcoming')
 
   return (
     <main className="mx-auto w-full max-w-4xl p-6 space-y-8">
