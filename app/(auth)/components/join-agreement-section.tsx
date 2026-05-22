@@ -12,12 +12,20 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 
+export type AgreementSubmitData = {
+  tosAgreed: boolean
+  techTrainAgreed: boolean
+}
+
 export function JoinAgreementSection({
   tosAgreed,
   techTrainAgreed,
+  onSubmit,
 }: {
   tosAgreed: boolean
   techTrainAgreed: boolean
+  /** 提供された場合、API 呼び出しの代わりにこのコールバックを呼ぶ */
+  onSubmit?: (data: AgreementSubmitData) => Promise<void> | void
 }) {
   const router = useRouter()
   const [tosChecked, setTosChecked] = useState(tosAgreed)
@@ -31,12 +39,23 @@ export function JoinAgreementSection({
       return
     }
 
+    setLoading(true)
+    setError('')
+
+    if (onSubmit) {
+      try {
+        await onSubmit({ tosAgreed: tosChecked, techTrainAgreed: techTrainChecked })
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '同意の送信に失敗しました')
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
     const agreementTypes: ('terms_of_service' | 'tech_train')[] = []
     if (!tosAgreed && tosChecked) agreementTypes.push('terms_of_service')
     if (!techTrainAgreed && techTrainChecked) agreementTypes.push('tech_train')
-
-    setLoading(true)
-    setError('')
 
     try {
       if (agreementTypes.length > 0) {
