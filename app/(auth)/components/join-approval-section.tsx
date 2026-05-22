@@ -40,7 +40,8 @@ export default function JoinApprovalSection({
             </CardHeader>
             <CardContent>
               <div className="rounded-md bg-muted p-4 text-sm text-muted-foreground">
-                承認が完了すると、すべての機能をご利用いただけるようになります。<br />
+                承認が完了すると、登録の続きが行えます。<br />
+                承認されるとメールで通知が届きます。
               </div>
             </CardContent>
           </>
@@ -62,7 +63,7 @@ export default function JoinApprovalSection({
             </CardHeader>
             <CardContent>
               <div className="rounded-md bg-muted p-4 text-sm text-muted-foreground text-left space-y-2">
-                <p>下の「連携」ボタンを押すと:</p>
+                <p>下の「DiscordとGitHubを連携」ボタンを押すと:</p>
                 <ul className="list-inside list-disc space-y-1">
                   <li>GitHub Org の招待がメールに送信されます</li>
                   <li>Discord サーバー参加画面が新しいタブで開きます</li>
