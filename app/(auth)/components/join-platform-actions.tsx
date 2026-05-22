@@ -86,7 +86,7 @@ export function JoinPlatformActions() {
         <Button onClick={inviteAll} disabled={loadingInvite} className="min-w-[12rem] w-full sm:w-auto">
           {loadingInvite ? '処理中…' : 'DiscordとGitHubを連携'}
         </Button>
-        <Button variant="outline" onClick={verifyAll} disabled={loadingVerify} className="min-w-[5rem] w-full sm:w-auto">
+        <Button variant="outline" onClick={verifyAll} disabled={loadingVerify} className="min-w-[6rem] w-full sm:w-auto">
           {loadingVerify ? '確認中…' : '次へ'}
         </Button>
       </div>
