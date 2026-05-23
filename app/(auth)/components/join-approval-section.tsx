@@ -63,7 +63,7 @@ export default function JoinApprovalSection({
             </CardHeader>
             <CardContent>
               <div className="rounded-md bg-muted p-4 text-sm text-muted-foreground text-left space-y-2">
-                <p>下の「DiscordとGitHubを連携」ボタンを押すと:</p>
+                <p>下の「Discord サーバー ＆ GitHub Org に参加」ボタンを押すと:</p>
                 <ul className="list-inside list-disc space-y-1">
                   <li>GitHub Org の招待がメールに送信されます</li>
                   <li>Discord サーバー参加画面が新しいタブで開きます</li>
