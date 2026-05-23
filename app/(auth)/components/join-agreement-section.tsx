@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Card,
@@ -11,19 +11,59 @@ import {
 } from '@/app/(auth)/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
+import MarkdownPreview from '@/app/(main)/term/components/MarkdownPreview'
+
+export type AgreementSubmitData = {
+  tosAgreed: boolean
+  techTrainAgreed: boolean
+}
 
 export function JoinAgreementSection({
   tosAgreed,
   techTrainAgreed,
+  onSubmit,
+  onBack,
 }: {
   tosAgreed: boolean
   techTrainAgreed: boolean
+  /** 提供された場合、API 呼び出しの代わりにこのコールバックを呼ぶ */
+  onSubmit?: (data: AgreementSubmitData) => Promise<void> | void
+  /** 前のステップへ戻る場合に指定 */
+  onBack?: () => void
 }) {
   const router = useRouter()
   const [tosChecked, setTosChecked] = useState(tosAgreed)
   const [techTrainChecked, setTechTrainChecked] = useState(techTrainAgreed)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const isWizardMode = Boolean(onSubmit)
+
+  const [termContent, setTermContent] = useState<string | null>(null)
+  const [termLoading, setTermLoading] = useState(true)
+  const [termError, setTermError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const fetchTerms = async () => {
+      try {
+        const res = await fetch('/api/term/export', { credentials: 'same-origin' })
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
+        const j: { content: string | null } = await res.json()
+        if (cancelled) return
+        setTermContent(j.content ?? null)
+      } catch (err) {
+        if (cancelled) return
+        console.error('会則データの取得に失敗しました:', err)
+        setTermError('会則の取得に失敗しました')
+      } finally {
+        if (!cancelled) setTermLoading(false)
+      }
+    }
+    fetchTerms()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleSubmit = async () => {
     if (!tosChecked) {
@@ -31,12 +71,23 @@ export function JoinAgreementSection({
       return
     }
 
+    setLoading(true)
+    setError('')
+
+    if (onSubmit) {
+      try {
+        await onSubmit({ tosAgreed: tosChecked, techTrainAgreed: techTrainChecked })
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '同意の送信に失敗しました')
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
     const agreementTypes: ('terms_of_service' | 'tech_train')[] = []
     if (!tosAgreed && tosChecked) agreementTypes.push('terms_of_service')
     if (!techTrainAgreed && techTrainChecked) agreementTypes.push('tech_train')
-
-    setLoading(true)
-    setError('')
 
     try {
       if (agreementTypes.length > 0) {
@@ -61,6 +112,29 @@ export function JoinAgreementSection({
 
   return (
     <div className="space-y-6">
+      {onBack && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+          disabled={loading}
+          className="-ml-2"
+        >
+          <svg
+            className="size-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M19 12H5" />
+            <path d="M12 19l-7-7 7-7" />
+          </svg>
+          戻る
+        </Button>
+      )}
       <div>
         <h2 className="text-lg font-semibold">会則・情報共有への同意</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -71,115 +145,29 @@ export function JoinAgreementSection({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">さざなみ開発会則</CardTitle>
-          <CardDescription>本会の運営に関する基本的な規約です</CardDescription>
+          <CardDescription>さざなみ開発の会則です</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="max-h-[36rem] overflow-y-auto rounded-md border bg-muted/30 p-5 text-sm leading-relaxed text-muted-foreground">
-
-            <h3 className="mb-3 text-sm font-bold text-foreground">第1章　総則</h3>
-            <h4 className="mb-1 font-semibold text-foreground">第1条（名称）</h4>
-            <p className="mb-3">本会は「さざなみ開発」（以下「本会」という）と称する。</p>
-            <h4 className="mb-1 font-semibold text-foreground">第2条（目的）</h4>
-            <p className="mb-3">本会は、メンバー相互の技術力向上、情報交換、作品制作を通じて、IT技術の探求と共有を目的とする。</p>
-            <h4 className="mb-1 font-semibold text-foreground">第3条（活動内容）</h4>
-            <p className="mb-1">本会は前条の目的を達成するため、以下の活動を行う。</p>
-            <ol className="mb-3 list-inside list-decimal space-y-0.5 pl-2">
-              <li>勉強会やハンズオンの開催</li>
-              <li>アプリ・Webサービス等の開発</li>
-              <li>コンテストやハッカソンへの参加</li>
-              <li>学園祭やオープンキャンパスでの展示</li>
-              <li>その他、会の目的に資する活動</li>
-            </ol>
-
-            <h3 className="mb-3 mt-4 text-sm font-bold text-foreground">第2章　会員</h3>
-            <h4 className="mb-1 font-semibold text-foreground">第4条（構成）</h4>
-            <p className="mb-3">本会の会員は、会の趣旨に賛同し、入会を希望した学生によって構成される。</p>
-            <h4 className="mb-1 font-semibold text-foreground">第5条（入退会）</h4>
-            <ol className="mb-3 list-inside list-decimal space-y-0.5 pl-2">
-              <li>入会を希望する者は、代表に申し出ることで入会できる。</li>
-              <li>退会を希望する者は、代表に申し出ることで退会できる。</li>
-              <li>著しく会の秩序を乱す行為があった場合、幹部会議により除名処分とすることがある。</li>
-            </ol>
-
-            <h3 className="mb-3 mt-4 text-sm font-bold text-foreground">第3章　運営</h3>
-            <h4 className="mb-1 font-semibold text-foreground">第6条（運営構成）</h4>
-            <ol className="mb-3 list-inside list-decimal space-y-0.5 pl-2">
-              <li>運営は幹部と開発班によって構成される。</li>
-              <li>幹部はサークルの円滑な活動を維持し、方針決定・企画立案・各種管理を行う。</li>
-              <li>開発班は、インフラ・基盤システムの開発・保守、デザイン業務を行う。</li>
-            </ol>
-            <h4 className="mb-1 font-semibold text-foreground">第7条（幹部構成）</h4>
-            <p className="mb-1">本会に以下の幹部を置く。</p>
-            <ol className="mb-3 list-inside list-decimal space-y-0.5 pl-2">
-              <li>代表</li>
-              <li>副代表</li>
-              <li>会計</li>
-              <li>その他、必要に応じて役職を設置できる。</li>
-            </ol>
-            <h4 className="mb-1 font-semibold text-foreground">第8条（幹部の役割）</h4>
-            <ol className="mb-3 list-inside list-decimal space-y-0.5 pl-2">
-              <li>代表は会を統括し、対外的な責任を持つ。</li>
-              <li>副代表は代表を補佐し、代表不在時にその職務を代行する。</li>
-              <li>会計は会の会計管理を行う。</li>
-            </ol>
-            <h4 className="mb-1 font-semibold text-foreground">第9条（幹部の条件）</h4>
-            <ol className="mb-3 list-inside list-decimal space-y-0.5 pl-2">
-              <li>次年度卒業でないこと。</li>
-              <li>所属期間が十分であること。</li>
-              <li>サークル活動への参加意欲が高く、責任を持って職務を遂行できること。</li>
-              <li>他のメンバーとの円滑なコミュニケーションが取れること。</li>
-            </ol>
-            <h4 className="mb-1 font-semibold text-foreground">第10条（幹部の任命）</h4>
-            <p className="mb-3">年度末に幹部全員で選任を行い、本人の承諾によって新幹部を任命する。</p>
-            <h4 className="mb-1 font-semibold text-foreground">第11条（開発班構成）</h4>
-            <ol className="mb-3 list-inside list-decimal space-y-0.5 pl-2">
-              <li>リーダー</li>
-              <li>メンバー</li>
-              <li>その他、必要に応じて役職を設置できる。</li>
-            </ol>
-            <h4 className="mb-1 font-semibold text-foreground">第12条（開発班の役割）</h4>
-            <ol className="mb-3 list-inside list-decimal space-y-0.5 pl-2">
-              <li>リーダーは開発班全体を統括し、開発計画の策定、進捗管理、品質管理を行う。また、幹部との連携窓口となり、活動内容を定期的に報告する。</li>
-              <li>メンバーは開発計画に沿って担当業務を遂行し、開発・デザイン・保守に必要な作業を分担して行う。また、必要に応じて技術的改善提案を行う。</li>
-            </ol>
-            <h4 className="mb-1 font-semibold text-foreground">第13条（開発班の条件）</h4>
-            <ol className="mb-3 list-inside list-decimal space-y-0.5 pl-2">
-              <li>基本的な開発スキルまたはデザインスキルを有すること。</li>
-              <li>定期的なミーティングや作業に参加できること。</li>
-              <li>チーム開発に必要なコミュニケーションを行えること。</li>
-              <li>サークルの開発活動に継続的に貢献できること。</li>
-            </ol>
-            <h4 className="mb-1 font-semibold text-foreground">第14条（開発班の任命）</h4>
-            <p className="mb-3">必要に応じて選任を行い、運営メンバーからの推薦かつ運営全員の賛成、本人の承諾によって開発班を任命する。</p>
-
-            <h3 className="mb-3 mt-4 text-sm font-bold text-foreground">第4章　会議</h3>
-            <h4 className="mb-1 font-semibold text-foreground">第15条（定例会）</h4>
-            <ol className="mb-3 list-inside list-decimal space-y-0.5 pl-2">
-              <li>本会は月に1回以上、定例会を開催する。必要に応じて臨時会議を招集できる。</li>
-              <li>メンバーは原則として、月に1回以上定例会に参加しなければならない。</li>
-              <li>定例会では個人または、チームでの1ヶ月間の活動を報告する。</li>
-            </ol>
-            <h4 className="mb-1 font-semibold text-foreground">第16条（意思決定）</h4>
-            <p className="mb-3">会の重要事項は、出席者の過半数の賛成により決定する。</p>
-
-            <h3 className="mb-3 mt-4 text-sm font-bold text-foreground">第5章　会計</h3>
-            <h4 className="mb-1 font-semibold text-foreground">第17条（会費）</h4>
-            <p className="mb-3">活動に必要な経費は、原則として会費または助成金、外部支援によって賄う。会費の金額および徴収方法は別途定める。</p>
-            <h4 className="mb-1 font-semibold text-foreground">第18条（会計報告）</h4>
-            <p className="mb-3">会計は、学期末または年度末に活動費の収支を報告する。</p>
-
-            <h3 className="mb-3 mt-4 text-sm font-bold text-foreground">第6章　附則</h3>
-            <h4 className="mb-1 font-semibold text-foreground">第19条（規約の改正）</h4>
-            <ol className="mb-3 list-inside list-decimal space-y-0.5 pl-2">
-              <li>本会則の改正は、会員の3分の2以上の同意をもって行う。</li>
-              <li>会則改正の同意は回答期限を1週間とし、期限内に回答がない場合は棄権とみなす。</li>
-            </ol>
-            <h4 className="mb-1 font-semibold text-foreground">第20条（会則の施行）</h4>
-            <ol className="list-inside list-decimal space-y-0.5 pl-2">
-              <li>この会則は、制定日より施行する。</li>
-              <li>会則を改正した場合、改正後の条文は運営会議が定める日より施行する。</li>
-            </ol>
-
+          <div className="flex h-[36rem] flex-col rounded-md border bg-muted/30">
+            {termLoading ? (
+              <div className="p-5 text-sm text-muted-foreground">読み込み中…</div>
+            ) : termError ? (
+              <div className="p-5 text-sm text-destructive">{termError}</div>
+            ) : (
+              <MarkdownPreview
+                text={termContent ?? '会則を取得できませんでした。'}
+                className="p-5 text-sm leading-relaxed text-muted-foreground
+                  [&_h1]:mt-4 [&_h1]:mb-3 [&_h1]:text-base [&_h1]:font-bold [&_h1]:text-foreground
+                  [&_h2]:mt-4 [&_h2]:mb-3 [&_h2]:text-sm [&_h2]:font-bold [&_h2]:text-foreground
+                  [&_h3]:mt-4 [&_h3]:mb-3 [&_h3]:text-sm [&_h3]:font-bold [&_h3]:text-foreground
+                  [&_h4]:mt-2 [&_h4]:mb-1 [&_h4]:font-semibold [&_h4]:text-foreground
+                  [&_p]:mb-3
+                  [&_ol]:mb-3 [&_ol]:list-decimal [&_ol]:pl-6
+                  [&_ul]:mb-3 [&_ul]:list-disc [&_ul]:pl-6
+                  [&_li]:my-1
+                  [&_li>p]:m-0 [&_li>p]:inline"
+              />
+            )}
           </div>
         </CardContent>
       </Card>
@@ -219,7 +207,7 @@ export function JoinAgreementSection({
             <Checkbox
               checked={tosChecked}
               onCheckedChange={(checked) => setTosChecked(checked === true)}
-              disabled={loading || tosAgreed}
+              disabled={loading || (!isWizardMode && tosAgreed)}
               className="mt-0.5"
             />
             <span className="text-sm leading-relaxed text-foreground">
@@ -231,7 +219,7 @@ export function JoinAgreementSection({
             <Checkbox
               checked={techTrainChecked}
               onCheckedChange={(checked) => setTechTrainChecked(checked === true)}
-              disabled={loading || techTrainAgreed}
+              disabled={loading || (!isWizardMode && techTrainAgreed)}
               className="mt-0.5"
             />
             <span className="text-sm leading-relaxed text-foreground">

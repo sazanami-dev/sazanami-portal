@@ -88,15 +88,42 @@ function isItNumberEmail(value: string): boolean {
   return /^it\d{6}@/i.test(value)
 }
 
+export type SignupSubmitData = {
+  email: string
+  studentId: string
+  className: string
+  attendanceNumber: number
+  name: string
+  nameKana: string
+  expectedGraduationYear: number | null
+}
+
+export type SignupInitialValues = {
+  studentId?: string
+  className?: string
+  attendanceNumber?: number
+  lastName?: string
+  firstName?: string
+  lastNameKana?: string
+  firstNameKana?: string
+  expectedGraduationYear?: number
+}
+
 type SignupFormProps = {
   /** 登録完了後に遷移したいパス（例: '/pending' や '/join'） */
   afterSuccessPath?: string
   mode?: 'signup' | 'renewing'
+  /** 提供された場合、API 呼び出しの代わりにこのコールバックを呼ぶ */
+  onSubmit?: (data: SignupSubmitData) => Promise<void> | void
+  /** 初期表示時の値（sessionStorage からの復元等） */
+  initialValues?: SignupInitialValues
 }
 
 export function SignupForm({
   afterSuccessPath = '/pending',
   mode = 'signup',
+  onSubmit,
+  initialValues,
 }: SignupFormProps) {
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
@@ -105,10 +132,8 @@ export function SignupForm({
   const [initError, setInitError] = useState<string | null>(null)
 
   const [email, setEmail] = useState('')
-  const [displayName, setDisplayName] = useState('')
 
   const isItEmail = isItNumberEmail(email)
-  const extractedStudentId = extractStudentIdFromEmail(email)
   const [studentId, setStudentId] = useState('')
 
   const [className, setClassName] = useState('')
@@ -141,7 +166,6 @@ export function SignupForm({
         ''
 
       setEmail(e)
-      setDisplayName(dn)
       const isItAddress = isItNumberEmail(e)
       // it メールなら学籍番号を自動抽出
       const extracted = extractStudentIdFromEmail(e)
@@ -179,13 +203,16 @@ export function SignupForm({
       }
 
       if (mode === 'signup') {
-        if (appUser?.status === 'active') {
-          router.replace('/')
-          return
-        }
-        if (appUser && appUser.status !== 'active') {
-          router.replace('/join')
-          return
+        // wizard モード（onSubmit 提供）の場合、appUser ベースのリダイレクトはスキップ
+        if (!onSubmit) {
+          if (appUser?.status === 'active') {
+            router.replace('/')
+            return
+          }
+          if (appUser && appUser.status !== 'active') {
+            router.replace('/join')
+            return
+          }
         }
       } else {
         if (!appUser || appUser.status !== 'renewing') {
@@ -230,10 +257,23 @@ export function SignupForm({
         }
       }
 
+      // initialValues が指定されていれば上書き（wizard 復元用）
+      if (initialValues) {
+        if (initialValues.studentId !== undefined) setStudentId(initialValues.studentId)
+        if (initialValues.className !== undefined) setClassName(initialValues.className)
+        if (initialValues.attendanceNumber !== undefined) setAttendanceNumber(initialValues.attendanceNumber)
+        if (initialValues.lastName !== undefined) setLastName(initialValues.lastName)
+        if (initialValues.firstName !== undefined) setFirstName(initialValues.firstName)
+        if (initialValues.lastNameKana !== undefined) setLastNameKana(initialValues.lastNameKana)
+        if (initialValues.firstNameKana !== undefined) setFirstNameKana(initialValues.firstNameKana)
+        if (initialValues.expectedGraduationYear !== undefined) setExpectedGraduationYear(initialValues.expectedGraduationYear)
+      }
+
       setLoadingInit(false)
     }
 
     run()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, router, supabase])
 
   useEffect(() => {
@@ -249,7 +289,7 @@ export function SignupForm({
     setExpectedGraduationYear(y ?? '')
   }, [studentId, className])
 
-  const onSubmit = async () => {
+  const handleSubmit = async () => {
     setSubmitting(true)
     setSubmitError(null)
 
@@ -284,20 +324,32 @@ export function SignupForm({
       return
     }
 
+    const payload: SignupSubmitData = {
+      email,
+      studentId,
+      className,
+      attendanceNumber: attendanceNumber as number,
+      name: `${lastName} ${firstName}`,
+      nameKana: `${lastNameKana} ${firstNameKana}`,
+      expectedGraduationYear: expectedGraduationYear === '' ? null : expectedGraduationYear,
+    }
+
+    if (onSubmit) {
+      try {
+        await onSubmit(payload)
+      } catch (err) {
+        setSubmitError(err instanceof Error ? err.message : '登録に失敗しました')
+        setSubmitting(false)
+      }
+      return
+    }
+
     const submitPath = mode === 'renewing' ? '/api/auth/renew' : '/api/auth/signup'
 
     const res = await fetch(submitPath, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email,
-        studentId,
-        className,
-        attendanceNumber,
-        name: `${lastName} ${firstName}`,
-        nameKana: `${lastNameKana} ${firstNameKana}`,
-        expectedGraduationYear: expectedGraduationYear === '' ? null : expectedGraduationYear,
-      }),
+      body: JSON.stringify(payload),
     })
 
     const json = await res.json().catch(() => ({}))
@@ -461,7 +513,7 @@ export function SignupForm({
 
         <Button
           className="w-full h-12 text-base font-medium mt-4"
-          onClick={onSubmit}
+          onClick={handleSubmit}
           disabled={submitting}
         >
           {submitting ? '送信中…' : mode === 'renewing' ? '更新する' : '登録する'}

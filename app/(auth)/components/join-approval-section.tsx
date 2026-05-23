@@ -9,10 +9,12 @@ import { JoinPlatformActions } from "./join-platform-actions"
 // 状態の型定義
 type ApprovalStatus = "pending" | "approved"
 
-export default function joinApprovalSection() {
-  // 実際のアプリではデータベースやAPIから現在の状態を取得しますが、
-  // ここでは動作確認のために useState を使って状態を管理します。
-  const [status, setStatus] = useState<ApprovalStatus>("pending")
+export default function JoinApprovalSection({
+  initialStatus = "pending",
+}: {
+  initialStatus?: ApprovalStatus
+} = {}) {
+  const [status, setStatus] = useState<ApprovalStatus>(initialStatus)
 
   return (
     // 画面全体の中央にカードを配置するレイアウト
@@ -33,23 +35,15 @@ export default function joinApprovalSection() {
               <CardDescription className="pt-2">
                 現在、管理者によるアカウントの確認を行っています。<br />
                 承認が完了するまでしばらくお待ちください。
-              </CardDescription>
+              
+            </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="rounded-md bg-muted p-4 text-sm text-muted-foreground">
-                承認が完了すると、すべての機能をご利用いただけるようになります。<br />
+                承認が完了すると、登録の続きが行えます。<br />
+                承認されるとメールで通知が届きます。
               </div>
             </CardContent>
-            <CardFooter className="flex flex-col gap-2">
-              {/* 開発確認用の切り替えボタン（本番では削除してください） */}
-              <Button 
-                variant="outline" 
-                className="w-full" 
-                onClick={() => setStatus("approved")}
-              >
-                （テスト）承認済みに切り替える
-              </Button>
-            </CardFooter>
           </>
         ) : (
           /* =========================================
@@ -68,15 +62,17 @@ export default function joinApprovalSection() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {/* 必要に応じて追加のメッセージなどを配置 */}
+              <div className="rounded-md bg-muted p-4 text-sm text-muted-foreground text-left space-y-2">
+                <p>下の「DiscordとGitHubを連携」ボタンを押すと:</p>
+                <ul className="list-inside list-disc space-y-1">
+                  <li>GitHub Org の招待がメールに送信されます</li>
+                  <li>Discord サーバー参加画面が新しいタブで開きます</li>
+                </ul>
+                <p>両方に参加したら「次へ」ボタンで参加を確認してください。</p>
+              </div>
             </CardContent>
             <CardFooter>
-              <JoinPlatformActions
-                     disabled={false}
-                     needsDiscord={true}
-                     needsGitHub={true}
-
-              />
+              <JoinPlatformActions />
             </CardFooter>
           </>
         )}

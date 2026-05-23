@@ -3,11 +3,11 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
 import { SignupForm } from '@/app/(auth)/components/join-signup-section'
-import { JoinPendingSection } from '@/app/(auth)/components/join-pending-section'
 import { JoinCompletedSection } from '@/app/(auth)/components/join-completed-section'
-import { JoinConnectionSection } from '@/app/(auth)/components/join-connection-section'
 import { JoinAgreementSection } from '@/app/(auth)/components/join-agreement-section'
+import JoinApprovalSection from '@/app/(auth)/components/join-approval-section'
 import { JoinStepList, type StepItem } from '@/app/(auth)/components/join-step-list'
+import { JoinWizard } from '@/app/(auth)/components/join-wizard'
 
 // --- 各ステップ用のSVGアイコン定義 ---
 const userIcon = (
@@ -115,7 +115,7 @@ export default async function JoinPage() {
         return [
           { label: 'ユーザー情報を登録する', status: 'done' as const, icon: userIcon },
           { label: '会則・情報共有に同意する', status: allAgreed ? 'done' as const : 'current' as const, icon: agreementIcon },
-          { label: 'アカウントを連携する', status: allAgreed ? (allConnected ? 'done' as const : 'current' as const) : 'upcoming' as const, icon: connectionIcon },
+          { label: 'アカウントを連携する', status: allAgreed ? (hasGithub && hasDiscord ? 'done' as const : 'current' as const) : 'upcoming' as const, icon: connectionIcon },
         ]
       case 'renewing':
         return [
@@ -130,8 +130,6 @@ export default async function JoinPage() {
     }
   })()
 
-  const upcomingSteps = steps.filter((s) => s.status === 'upcoming')
-
   return (
     <main className="mx-auto w-full max-w-4xl p-6 space-y-8">
       {/* ウェルカムメッセージ */}
@@ -141,31 +139,27 @@ export default async function JoinPage() {
         </h1>
       </section>
 
-      {/* ステップインジケーター */}
-      <JoinStepList steps={steps} />
+      {/* 未登録 → ウィザード（ステップ表示は内部で管理） */}
+      {state === 'unregistered' && (
+        <JoinWizard
+          authUser={authUser}
+          isDiscordJoined={isDiscordServerJoined}
+          isGitHubJoined={isGitHubOrgJoined}
+        />
+      )}
+
+      {/* ステップインジケーター（登録済以降のみ） */}
+      {state !== 'unregistered' && <JoinStepList steps={steps} />}
 
       <section className="space-y-6">
 
-        {/* 未登録 → 登録フォーム */}
-        {state === 'unregistered' && (
-          <SignupForm afterSuccessPath="/join" />
-        )}
-
-        {/* pending → 同意 → 連携 */}
+        {/* pending → 同意済なら承認待ち、未同意なら同意画面 */}
         {state === 'pending' && appUser && (
           <>
             {!allAgreed ? (
               <JoinAgreementSection tosAgreed={tosAgreed} techTrainAgreed={techTrainAgreed} />
             ) : (
-              <>
-                {/* <JoinPendingSection authUser={authUser} appUser={appUser} /> */}
-                <JoinConnectionSection
-                  authUser={authUser}
-                  canJoinOrg={false}
-                  isDiscordJoined={isDiscordServerJoined}
-                  isGitHubJoined={isGitHubOrgJoined}
-                />
-              </>
+              <JoinApprovalSection />
             )}
           </>
         )}
@@ -173,18 +167,13 @@ export default async function JoinPage() {
         {/* renewing → 更新フォーム */}
         {state === 'renewing' && <SignupForm mode="renewing" afterSuccessPath="/join" />}
 
-        {/* active → 同意 → 連携 → 完了 */}
+        {/* active → 同意 → サーバー参加確認 → 完了 */}
         {state === 'active' && appUser && (
           <>
             {!allAgreed ? (
               <JoinAgreementSection tosAgreed={tosAgreed} techTrainAgreed={techTrainAgreed} />
             ) : !allConnected ? (
-              <JoinConnectionSection
-                authUser={authUser}
-                canJoinOrg={true}
-                isDiscordJoined={isDiscordServerJoined}
-                isGitHubJoined={isGitHubOrgJoined}
-              />
+              <JoinApprovalSection initialStatus="approved" />
             ) : (
               <JoinCompletedSection authUser={authUser} appUser={appUser} />
             )}
