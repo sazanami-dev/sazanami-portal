@@ -107,6 +107,7 @@ export async function updateSession(request: NextRequest) {
       pathname.startsWith('/api/agreement') ||
       pathname.startsWith('/api/discord') ||
       pathname.startsWith('/api/github') ||
+      pathname.startsWith('/api/term') ||
       pathname.startsWith('/error')
 
     // やり残しがあるのに /join 以外へ行こうとしたら /join へ
