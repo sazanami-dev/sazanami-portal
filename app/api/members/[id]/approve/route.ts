@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { PENDING_APPROVER_ROLES } from '@/lib/members/permissions'
 import { requireViewerRole } from '@/lib/members/route-helpers'
+import { sendApprovalEmail } from '@/lib/mailer'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -25,7 +26,7 @@ export async function POST(_request: Request, context: RouteContext) {
   const admin = createAdminClient()
   const { data: target, error: te } = await admin
     .from('users')
-    .select('id, status')
+    .select('id, status, email, name')
     .eq('id', targetId)
     .maybeSingle()
 
@@ -48,6 +49,14 @@ export async function POST(_request: Request, context: RouteContext) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  if (process.env.RESEND_API_KEY) {
+    try {
+      await sendApprovalEmail(target.email, target.name)
+    } catch (mailErr) {
+      console.error('[approve] email send failed:', mailErr)
+    }
   }
 
   return NextResponse.json({ ok: true })

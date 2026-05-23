@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { sendPendingApprovalNotification } from '@/lib/discord/notify'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -66,6 +67,18 @@ export async function POST(request: Request) {
 
   if (insertErr) {
     return NextResponse.json({ error: insertErr.message }, { status: 500 })
+  }
+
+  try {
+    await sendPendingApprovalNotification({
+      userId,
+      email,
+      name,
+      studentId,
+      className: normalizedClassName,
+    })
+  } catch (e) {
+    console.error('[signup] discord notify failed:', e)
   }
 
   return NextResponse.json({ ok: true }, { status: 200 })
