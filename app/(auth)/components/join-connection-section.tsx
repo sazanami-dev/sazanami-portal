@@ -29,6 +29,11 @@ export type ConnectionUserInfo = {
   expectedGraduationYear: number | string | null
 }
 
+export type ConnectionAgreementInfo = {
+  tosAgreed: boolean
+  techTrainAgreed: boolean
+}
+
 function pickIdentity(
   identities: UserIdentity[] | undefined,
   provider: UserIdentity['provider']
@@ -61,7 +66,9 @@ export function JoinConnectionSection({
   isDiscordJoined,
   isGitHubJoined,
   userInfo,
+  agreementInfo,
   onConfirm,
+  onBack,
 }: {
   authUser: User
   canJoinOrg: boolean
@@ -69,8 +76,12 @@ export function JoinConnectionSection({
   isGitHubJoined: boolean
   /** モーダルに表示する登録情報。未指定時は authUser から最低限を構築。 */
   userInfo?: ConnectionUserInfo
+  /** モーダルに表示する同意事項。 */
+  agreementInfo?: ConnectionAgreementInfo
   /** モーダル確認時のコールバック。未指定時は従来通り JoinApprovalSection に遷移するのみ。 */
   onConfirm?: () => Promise<void> | void
+  /** 前のステップへ戻る場合に指定 */
+  onBack?: () => void
 }) {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -122,6 +133,29 @@ export function JoinConnectionSection({
 
   return (
     <div className="space-y-6">
+      {onBack && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+          disabled={submitting}
+          className="-ml-2"
+        >
+          <svg
+            className="size-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M19 12H5" />
+            <path d="M12 19l-7-7 7-7" />
+          </svg>
+          戻る
+        </Button>
+      )}
       <div>
         <h2 className="text-lg font-semibold">アカウント連携</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -259,6 +293,23 @@ export function JoinConnectionSection({
               <dt className="text-muted-foreground font-medium">卒業年</dt>
               <dd className="col-span-2">{displayInfo.expectedGraduationYear || '—'}</dd>
             </dl>
+
+            {agreementInfo && (
+              <div className="border-t pt-4">
+                <dl className="grid grid-cols-3 gap-y-3 text-sm">
+                  <dt className="text-muted-foreground font-medium">さざなみ開発会則</dt>
+                  <dd className="col-span-2">
+                    {agreementInfo.tosAgreed ? '同意する' : '同意しない'}
+                  </dd>
+
+                  <dt className="text-muted-foreground font-medium">TechTrain への情報共有</dt>
+                  <dd className="col-span-2">
+                    {agreementInfo.techTrainAgreed ? '同意する' : '同意しない'}
+                  </dd>
+                </dl>
+              </div>
+            )}
+
             {submitError && (
               <p className="text-sm text-destructive">{submitError}</p>
             )}

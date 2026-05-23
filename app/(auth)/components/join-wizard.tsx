@@ -115,6 +115,14 @@ export function JoinWizard({
     setState((prev) => ({ ...prev, step: 'connection', agreementData: data }))
   }
 
+  const handleAgreementBack = () => {
+    setState((prev) => ({ ...prev, step: 'signup' }))
+  }
+
+  const handleConnectionBack = () => {
+    setState((prev) => ({ ...prev, step: 'agreement' }))
+  }
+
   const handleFinalConfirm = async () => {
     if (!state.signupData || !state.agreementData) {
       throw new Error('登録データが不完全です。最初からやり直してください。')
@@ -183,6 +191,7 @@ export function JoinWizard({
           tosAgreed={state.agreementData?.tosAgreed ?? false}
           techTrainAgreed={state.agreementData?.techTrainAgreed ?? false}
           onSubmit={handleAgreementSubmit}
+          onBack={handleAgreementBack}
         />
       )
     }
@@ -204,7 +213,12 @@ export function JoinWizard({
         isDiscordJoined={isDiscordJoined}
         isGitHubJoined={isGitHubJoined}
         userInfo={userInfo}
+        agreementInfo={{
+          tosAgreed: state.agreementData?.tosAgreed ?? false,
+          techTrainAgreed: state.agreementData?.techTrainAgreed ?? false,
+        }}
         onConfirm={handleFinalConfirm}
+        onBack={handleConnectionBack}
       />
     )
   }
