@@ -516,7 +516,7 @@ export function SignupForm({
           onClick={handleSubmit}
           disabled={submitting}
         >
-          {submitting ? '送信中…' : mode === 'renewing' ? '更新する' : '登録する'}
+          {submitting ? '送信中…' : mode === 'renewing' ? '更新する' : '次へ'}
         </Button>
       </div>
     </div>

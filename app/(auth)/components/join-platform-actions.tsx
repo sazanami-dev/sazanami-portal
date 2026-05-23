@@ -83,8 +83,8 @@ export function JoinPlatformActions() {
   return (
     <div className="space-y-2 w-full">
       <div className="flex flex-col sm:flex-row gap-2 justify-center">
-        <Button onClick={inviteAll} disabled={loadingInvite} className="min-w-[12rem] w-full sm:w-auto">
-          {loadingInvite ? '処理中…' : 'DiscordとGitHubを連携'}
+        <Button onClick={inviteAll} disabled={loadingInvite} className="min-w-[16rem] w-full sm:w-auto">
+          {loadingInvite ? '処理中…' : 'Discord サーバー ＆ GitHub Org に参加'}
         </Button>
         <Button variant="outline" onClick={verifyAll} disabled={loadingVerify} className="min-w-[6rem] w-full sm:w-auto">
           {loadingVerify ? '確認中…' : '次へ'}
