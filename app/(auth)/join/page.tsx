@@ -3,16 +3,32 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
 import { SignupForm } from '@/app/(auth)/components/join-signup-section'
-import { JoinPendingSection } from '@/app/(auth)/components/join-pending-section'
 import { JoinCompletedSection } from '@/app/(auth)/components/join-completed-section'
-import { JoinConnectionSection } from '@/app/(auth)/components/join-connection-section'
 import { JoinAgreementSection } from '@/app/(auth)/components/join-agreement-section'
-import { JoinStepList } from '@/app/(auth)/components/join-step-list'
+import JoinApprovalSection from '@/app/(auth)/components/join-approval-section'
+import { JoinStepList, type StepItem } from '@/app/(auth)/components/join-step-list'
+import { JoinWizard } from '@/app/(auth)/components/join-wizard'
 
-type Step = {
-  label: string
-  status: 'done' | 'current' | 'upcoming'
-}
+// --- 各ステップ用のSVGアイコン定義 ---
+const userIcon = (
+  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+)
+
+const agreementIcon = (
+  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+)
+
+const connectionIcon = (
+  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+  </svg>
+)
 
 export default async function JoinPage() {
   const supabase = await createClient()
@@ -78,7 +94,6 @@ export default async function JoinPage() {
     ''
 
   // 連携済みか判定
-  
   const identities = authUser.identities ?? []
   const hasGithub = identities.some((i) => i.provider === 'github')
   const hasDiscord = identities.some((i) => i.provider === 'discord')
@@ -87,78 +102,64 @@ export default async function JoinPage() {
 
   const allConnected = hasGithub && hasDiscord && isDiscordServerJoined && isGitHubOrgJoined
 
-  // ステップ定義
-  const steps: Step[] = (() => {
+  // ステップ定義（「管理者の承認を待つ」を削除）
+  const steps: StepItem[] = (() => {
     switch (state) {
       case 'unregistered':
         return [
-          { label: 'ユーザー情報を登録する', status: 'current' as const },
-          { label: '会則・情報共有に同意する', status: 'upcoming' as const },
-          { label: 'アカウントを連携する（GitHub / Discord）', status: 'upcoming' as const },
-          { label: '管理者の承認を待つ', status: 'upcoming' as const },
+          { label: 'ユーザー情報を登録する', status: 'current' as const, icon: userIcon },
+          { label: '会則・情報共有に同意する', status: 'upcoming' as const, icon: agreementIcon },
+          { label: 'アカウントを連携する', status: 'upcoming' as const, icon: connectionIcon },
         ]
       case 'pending':
         return [
-          { label: 'ユーザー情報を登録する', status: 'done' as const },
-          { label: '会則・情報共有に同意する', status: allAgreed ? 'done' as const : 'current' as const },
-          { label: 'アカウントを連携する（GitHub / Discord）', status: allAgreed ? (allConnected ? 'done' as const : 'current' as const) : 'upcoming' as const },
-          { label: '管理者の承認を待つ', status: 'current' as const },
+          { label: 'ユーザー情報を登録する', status: 'done' as const, icon: userIcon },
+          { label: '会則・情報共有に同意する', status: allAgreed ? 'done' as const : 'current' as const, icon: agreementIcon },
+          { label: 'アカウントを連携する', status: allAgreed ? (hasGithub && hasDiscord ? 'done' as const : 'current' as const) : 'upcoming' as const, icon: connectionIcon },
         ]
       case 'renewing':
         return [
-          { label: '登録情報を更新する', status: 'current' as const },
+          { label: '登録情報を更新する', status: 'current' as const, icon: userIcon },
         ]
       case 'active':
         return [
-          { label: 'ユーザー情報を登録する', status: 'done' as const },
-          { label: '会則・情報共有に同意する', status: allAgreed ? 'done' as const : 'current' as const },
-          { label: 'アカウントを連携する（GitHub / Discord）', status: allAgreed ? (allConnected ? 'done' as const : 'current' as const) : 'upcoming' as const },
-          { label: '管理者の承認を待つ', status: 'done' as const },
+          { label: 'ユーザー情報を登録する', status: 'done' as const, icon: userIcon },
+          { label: '会則・情報共有に同意する', status: allAgreed ? 'done' as const : 'current' as const, icon: agreementIcon },
+          { label: 'アカウントを連携する', status: allAgreed ? (allConnected ? 'done' as const : 'current' as const) : 'upcoming' as const, icon: connectionIcon },
         ]
     }
   })()
 
-  const upcomingSteps = steps.filter((s) => s.status === 'upcoming')
-
   return (
     <main className="mx-auto w-full max-w-4xl p-6 space-y-8">
       {/* ウェルカムメッセージ */}
-      <section className="space-y-1">
-        <h1 className="text-2xl font-bold">
+      <section className="space-y-1 flex m-5">
+        <h1 className="text-3xl font-bold w-full text-center">
           {displayName}さん、さざなみ開発へようこそ！
         </h1>
-        <p className="text-sm text-muted-foreground">
-          参加手続きの進捗を確認できます。
-        </p>
       </section>
 
-      {/* ステップインジケーター */}
-      <JoinStepList steps={steps} />
+      {/* 未登録 → ウィザード（ステップ表示は内部で管理） */}
+      {state === 'unregistered' && (
+        <JoinWizard
+          authUser={authUser}
+          isDiscordJoined={isDiscordServerJoined}
+          isGitHubJoined={isGitHubOrgJoined}
+        />
+      )}
 
-      {/* 次にやること */}
+      {/* ステップインジケーター（登録済以降のみ） */}
+      {state !== 'unregistered' && <JoinStepList steps={steps} />}
+
       <section className="space-y-6">
-        <h2 className="text-lg font-semibold">次にやること</h2>
 
-        {/* 未登録 → 登録フォーム */}
-        {state === 'unregistered' && (
-          <SignupForm afterSuccessPath="/join" />
-        )}
-
-        {/* pending → 同意 → 連携 → 承認待ち */}
+        {/* pending → 同意済なら承認待ち、未同意なら同意画面 */}
         {state === 'pending' && appUser && (
           <>
             {!allAgreed ? (
               <JoinAgreementSection tosAgreed={tosAgreed} techTrainAgreed={techTrainAgreed} />
             ) : (
-              <>
-                <JoinPendingSection authUser={authUser} appUser={appUser} />
-                <JoinConnectionSection
-                  authUser={authUser}
-                  canJoinOrg={false}
-                  isDiscordJoined={isDiscordServerJoined}
-                  isGitHubJoined={isGitHubOrgJoined}
-                />
-              </>
+              <JoinApprovalSection />
             )}
           </>
         )}
@@ -166,18 +167,13 @@ export default async function JoinPage() {
         {/* renewing → 更新フォーム */}
         {state === 'renewing' && <SignupForm mode="renewing" afterSuccessPath="/join" />}
 
-        {/* active → 同意 → 連携 → 完了 */}
+        {/* active → 同意 → サーバー参加確認 → 完了 */}
         {state === 'active' && appUser && (
           <>
             {!allAgreed ? (
               <JoinAgreementSection tosAgreed={tosAgreed} techTrainAgreed={techTrainAgreed} />
             ) : !allConnected ? (
-              <JoinConnectionSection
-                authUser={authUser}
-                canJoinOrg={true}
-                isDiscordJoined={isDiscordServerJoined}
-                isGitHubJoined={isGitHubOrgJoined}
-              />
+              <JoinApprovalSection initialStatus="approved" />
             ) : (
               <JoinCompletedSection authUser={authUser} appUser={appUser} />
             )}
@@ -186,27 +182,7 @@ export default async function JoinPage() {
 
       </section>
 
-      {/* 残りのやること */}
-      {upcomingSteps.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-muted-foreground">
-            残りのやること
-          </h2>
-          <ul className="space-y-1">
-            {upcomingSteps.map((s) => (
-              <li
-                key={s.label}
-                className="flex items-center gap-2 text-sm text-muted-foreground"
-              >
-                <span className="flex h-5 w-5 items-center justify-center rounded-full border text-xs">
-                  {steps.indexOf(s) + 1}
-                </span>
-                {s.label}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      
     </main>
   )
 }

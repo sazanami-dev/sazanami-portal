@@ -23,7 +23,7 @@ async function discordApiRequest({
 }: {
   botToken: string
   path: string
-  method?: 'GET' | 'PUT' | 'PATCH' | 'POST'
+  method?: 'GET' | 'PUT' | 'PATCH' | 'POST' | 'DELETE'
   body?: unknown
 }): Promise<DiscordApiResult> {
   const headers: Record<string, string> = {
@@ -124,6 +124,26 @@ export async function addRoleToMember({
     botToken,
     path: `/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`,
     method: 'PUT',
+  })
+  if (!result.ok) return { ok: false, detail: result.detail }
+  return { ok: true }
+}
+
+export async function removeRoleFromMember({
+  botToken,
+  guildId,
+  discordUserId,
+  roleId,
+}: {
+  botToken: string
+  guildId: string
+  discordUserId: string
+  roleId: string
+}): Promise<{ ok: true } | { ok: false; detail: string }> {
+  const result = await discordApiRequest({
+    botToken,
+    path: `/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`,
+    method: 'DELETE',
   })
   if (!result.ok) return { ok: false, detail: result.detail }
   return { ok: true }

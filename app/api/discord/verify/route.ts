@@ -4,7 +4,7 @@ import {
   addRoleToMember,
   getGuildMember,
   pickDiscordUserId,
-  updateDiscordNickname,
+  removeRoleFromMember,
 } from '@/lib/discord/member'
 
 export async function POST() {
@@ -17,7 +17,7 @@ export async function POST() {
 
   const { data: appUser, error: appUserErr } = await supabase
     .from('users')
-    .select('status, class_name, name')
+    .select('status')
     .eq('id', userData.user.id)
     .maybeSingle()
 
@@ -31,6 +31,7 @@ export async function POST() {
   const botToken = process.env.DISCORD_BOT_TOKEN
   const guildId = process.env.DISCORD_GUILD_ID
   const roleId = process.env.DISCORD_ROLE_ID_MEMBER
+  const tempRoleId = process.env.DISCORD_ROLE_ID_TEMPORARY
   if (!botToken || !guildId || !roleId) {
     return NextResponse.json({ error: 'discord_env_missing' }, { status: 500 })
   }
@@ -60,15 +61,19 @@ export async function POST() {
     }
   }
 
-  const nicknameResult = await updateDiscordNickname({
-    botToken,
-    guildId,
-    discordUserId,
-    className: appUser.class_name ?? null,
-    fullName: appUser.name ?? null,
-  })
-  if (!nicknameResult.updated && nicknameResult.reason === 'nickname_update_failed') {
-    console.warn('[discord/verify] updateDiscordNickname failed (non-fatal):', nicknameResult.detail)
+  let tempRoleRemoved = false
+  if (tempRoleId && currentRoles.includes(tempRoleId)) {
+    const removeResult = await removeRoleFromMember({
+      botToken,
+      guildId,
+      discordUserId,
+      roleId: tempRoleId,
+    })
+    if (!removeResult.ok) {
+      console.warn('[discord/verify] removeRoleFromMember (temp) failed (non-fatal):', removeResult.detail)
+    } else {
+      tempRoleRemoved = true
+    }
   }
 
   await supabase
@@ -81,7 +86,6 @@ export async function POST() {
     joined: true,
     roleGranted: true,
     alreadyHadRole,
-    nicknameUpdated: nicknameResult.updated,
-    nicknameSkippedReason: nicknameResult.updated ? null : nicknameResult.reason,
+    tempRoleRemoved,
   })
 }
