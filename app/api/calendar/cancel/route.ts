@@ -42,7 +42,7 @@ export async function POST(req: Request) {
       .eq("id", user.id)
       .maybeSingle();
     const role = appUser?.role;
-    const allowed = role === "admin" || role === "developer";
+    const allowed = role === "admin" || role === "developer" || role === "manager";
     if (!allowed)
       return NextResponse.json({ error: "権限がありません" }, { status: 403 });
 
