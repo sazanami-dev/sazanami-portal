@@ -169,3 +169,39 @@ export const auditLogs = pgTable('audit_logs', {
     .notNull()
     .defaultNow(),
 })
+
+// ==============================
+// short_links
+// ==============================
+//
+// namespace:
+//   公式リンク → '_s'
+//   ユーザーリンク → users.student_id の値
+// (namespace, slug) で一意制約を設ける
+
+export const shortLinks = pgTable(
+  'short_links',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    namespace: varchar('namespace', { length: 255 }).notNull(),
+    slug: varchar('slug', { length: 100 }).notNull(),
+    title: varchar('title', { length: 255 }),
+    targetUrl: text('target_url').notNull(),
+    createdBy: uuid('created_by')
+      .references(() => users.id, { onDelete: 'set null' }),
+    passwordHash: text('password_hash'),
+    inCollection: boolean('in_collection').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    namespaceSlugUnique: unique('short_links_namespace_slug_key').on(
+      table.namespace,
+      table.slug
+    ),
+  })
+)

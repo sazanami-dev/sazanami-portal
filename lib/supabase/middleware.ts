@@ -16,8 +16,41 @@ function isAllowedPath(pathname: string) {
   return false
 }
 
+// 学籍番号パターン: 数字のみ (例: 12345678)
+const STUDENT_ID_SLUG_PATTERN = /^\/\d+\/[^/]+\/?$/
+
+function isPublicLinkPath(pathname: string): boolean {
+  if (pathname.startsWith('/s/')) return true
+  if (STUDENT_ID_SLUG_PATTERN.test(pathname)) return true
+  return false
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
+
+  // 公開リダイレクトルートは認証ガードをスキップ（セッション更新は継続）
+  if (isPublicLinkPath(request.nextUrl.pathname)) {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+            supabaseResponse = NextResponse.next({ request })
+            cookiesToSet.forEach(({ name, value, options }) =>
+              supabaseResponse.cookies.set(name, value, options)
+            )
+          },
+        },
+      }
+    )
+    await supabase.auth.getClaims()
+    return supabaseResponse
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

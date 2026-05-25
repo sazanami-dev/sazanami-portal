@@ -22,6 +22,13 @@
       "when": 1774926339910,
       "tag": "0002_abandoned_ultimo",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1779649032711,
+      "tag": "0003_mushy_obadiah_stane",
+      "breakpoints": true
     }
   ]
 }
