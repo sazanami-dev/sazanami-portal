@@ -10,7 +10,7 @@ export default async function Page() {
     const admin = createAdminClient()
     const { data: appUser } = await admin.from('users').select('role').eq('id', user.id).maybeSingle()
     const role = appUser?.role
-    const allowed = role === 'admin' || role === 'developer'
+    const allowed = role === 'admin' || role === 'developer' || role === 'manager'
     if (!allowed) redirect('/')
 
     return <CalendarClient />
