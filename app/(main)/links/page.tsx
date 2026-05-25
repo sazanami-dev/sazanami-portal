@@ -22,12 +22,18 @@ export default async function LinksPage() {
   if (!userRow) redirect('/signin')
 
   const role = userRow.role as AppRole
-  const isAdmin = role === 'admin' || role === 'developer'
-  const links = await listLinks({ createdBy: user.id, adminView: isAdmin })
+  const isFullAdmin = role === 'admin' || role === 'developer'
+  const canOfficial = canCreateOfficialLink(role) // admin / developer / manager
+  const links = await listLinks({
+    createdBy: user.id,
+    adminView: isFullAdmin,
+    includeAllOfficial: !isFullAdmin && canOfficial,
+  })
 
-  // 管理者の場合、リンク作成者の名前を取得してマップを渡す
+  // 公式リンクを複数ユーザーで共有するロール（admin/developer/manager）の場合、
+  // 作成者名マップを取得してタブ表示に使う
   let usersMap: Record<string, string> = {}
-  if (isAdmin && links.length > 0) {
+  if (canOfficial && links.length > 0) {
     const creatorIds = [...new Set(links.map((l) => l.createdBy).filter(Boolean))] as string[]
     const { data: creators } = await admin
       .from('users')
@@ -44,9 +50,9 @@ export default async function LinksPage() {
       currentUserId={user.id}
       currentUserName={userRow.name}
       studentId={userRow.student_id ?? null}
-      canCreateOfficial={canCreateOfficialLink(role)}
+      canCreateOfficial={canOfficial}
       officialNamespace={OFFICIAL_LINK_NAMESPACE}
-      isAdmin={isAdmin}
+      isAdmin={canOfficial}
       usersMap={usersMap}
     />
   )

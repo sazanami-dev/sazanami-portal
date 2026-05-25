@@ -41,15 +41,16 @@ async function isSlugAvailable(
   return !data
 }
 
-export async function createLink(input: CreateLinkInput): Promise<ShortLink | null> {
+export async function createLink(input: CreateLinkInput): Promise<ShortLink | 'duplicate' | null> {
   if (!validateTargetUrl(input.targetUrl)) return null
 
   const admin = createAdminClient()
-  const length = Math.min(10, Math.max(5, input.slugLength ?? 7))
+  const length = input.slugLength ?? 3
 
   let slug = input.slug
   if (slug) {
     if (!validateSlug(slug)) return null
+    if (!(await isSlugAvailable(admin, input.namespace, slug))) return 'duplicate'
   } else {
     let attempts = 0
     do {
@@ -110,18 +111,37 @@ export async function getLinkById(id: string): Promise<(ShortLink & { passwordHa
 export async function listLinks(options: {
   createdBy?: string
   adminView?: boolean
+  includeAllOfficial?: boolean
 }): Promise<ShortLink[]> {
   const admin = createAdminClient()
-  let query = admin
-    .from('short_links')
-    .select('id, namespace, slug, title, target_url, created_by, password_hash, in_collection, created_at, updated_at')
-    .order('created_at', { ascending: false })
 
-  if (!options.adminView && options.createdBy) {
-    query = query.eq('created_by', options.createdBy)
+  if (options.adminView) {
+    // 全件取得
+    const { data, error } = await admin
+      .from('short_links')
+      .select('id, namespace, slug, title, target_url, created_by, password_hash, in_collection, created_at, updated_at')
+      .order('created_at', { ascending: false })
+    if (error || !data) return []
+    return data.map(rowToLink)
   }
 
-  const { data, error } = await query
+  if (options.includeAllOfficial && options.createdBy) {
+    // 公式リンク全件 + 自分のユーザーリンク
+    const { data, error } = await admin
+      .from('short_links')
+      .select('id, namespace, slug, title, target_url, created_by, password_hash, in_collection, created_at, updated_at')
+      .or(`namespace.eq.${OFFICIAL_LINK_NAMESPACE},created_by.eq.${options.createdBy}`)
+      .order('created_at', { ascending: false })
+    if (error || !data) return []
+    return data.map(rowToLink)
+  }
+
+  // 自分のリンクのみ
+  const { data, error } = await admin
+    .from('short_links')
+    .select('id, namespace, slug, title, target_url, created_by, password_hash, in_collection, created_at, updated_at')
+    .eq('created_by', options.createdBy ?? '')
+    .order('created_at', { ascending: false })
   if (error || !data) return []
   return data.map(rowToLink)
 }

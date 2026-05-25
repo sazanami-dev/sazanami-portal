@@ -7,6 +7,7 @@ import {
   OFFICIAL_LINK_NAMESPACE,
 } from '@/lib/links/permissions'
 import { createLink, listLinks } from '@/lib/links/service'
+import { validateSlug, validateTargetUrl } from '@/lib/links/slug'
 
 export async function GET() {
   const ctx = await requireViewerRole()
@@ -73,6 +74,12 @@ export async function POST(request: Request) {
     }
   }
 
+  if (slug && !validateSlug(slug)) {
+    return NextResponse.json({ error: 'invalid_slug' }, { status: 400 })
+  }
+  if (targetUrl && !validateTargetUrl(targetUrl)) {
+    return NextResponse.json({ error: 'invalid_url' }, { status: 400 })
+  }
   const link = await createLink({
     namespace,
     slug,
@@ -84,6 +91,9 @@ export async function POST(request: Request) {
     createdBy: ctx.userId,
   })
 
+  if (link === 'duplicate') {
+    return NextResponse.json({ error: 'duplicate_slug' }, { status: 409 })
+  }
   if (!link) {
     return NextResponse.json({ error: 'create_failed' }, { status: 409 })
   }

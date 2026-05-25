@@ -13,9 +13,10 @@ export function canCreateUserLink(role: AppRole): boolean {
 export function canManageLink(
   actorId: string,
   actorRole: AppRole,
-  link: { createdBy: string | null }
+  link: { createdBy: string | null; namespace: string }
 ): boolean {
   if (actorRole === 'admin' || actorRole === 'developer') return true
+  if (actorRole === 'manager' && link.namespace === OFFICIAL_LINK_NAMESPACE) return true
   return link.createdBy === actorId
 }
 

@@ -12,6 +12,21 @@ type Props = {
   onCancel: () => void
 }
 
+const ERROR_MESSAGES: Record<string, string> = {
+  invalid_slug: 'スラグは英数字・ハイフンのみ使用できます',
+  duplicate_slug: 'このスラグはすでに使用されています。再生成してください',
+  invalid_url: '転送先 URL の形式が正しくありません',
+  create_failed: '作成に失敗しました。しばらくしてから再試行してください',
+  update_failed: '更新に失敗しました。しばらくしてから再試行してください',
+}
+
+function randomSlug(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+  const arr = new Uint8Array(3)
+  crypto.getRandomValues(arr)
+  return Array.from(arr).map((b) => chars[b % chars.length]).join('')
+}
+
 export default function LinkForm({
   initial,
   canCreateOfficial,
@@ -22,12 +37,10 @@ export default function LinkForm({
 }: Props) {
   const defaultNamespace =
     initial?.namespace ??
-    (canCreateOfficial ? officialNamespace : studentId ?? '')
+    (studentId ?? (canCreateOfficial ? officialNamespace : ''))
 
   const [namespace, setNamespace] = useState(defaultNamespace)
-  const [useCustomSlug, setUseCustomSlug] = useState(!!initial?.slug)
-  const [slug, setSlug] = useState(initial?.slug ?? '')
-  const [slugLength, setSlugLength] = useState(7)
+  const [slug, setSlug] = useState(initial?.slug ?? randomSlug())
   const [title, setTitle] = useState(initial?.title ?? '')
   const [targetUrl, setTargetUrl] = useState(initial?.targetUrl ?? '')
   const [password, setPassword] = useState('')
@@ -37,172 +50,152 @@ export default function LinkForm({
 
   const isEditing = !!initial
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
-    const body: Record<string, unknown> = { namespace, targetUrl, inCollection, title: title || null }
-    if (useCustomSlug && slug) body.slug = slug
-    else if (!isEditing) body.slugLength = slugLength
-    if (password) body.password = password
+    try {
+      const body: Record<string, unknown> = {
+        namespace,
+        slug,
+        targetUrl,
+        inCollection,
+        title: title || null,
+      }
+      if (password) body.password = password
 
-    const url = isEditing ? `/api/links/${initial.id}` : '/api/links'
-    const method = isEditing ? 'PATCH' : 'POST'
+      const url = isEditing ? `/api/links/${initial.id}` : '/api/links'
+      const method = isEditing ? 'PATCH' : 'POST'
 
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
 
-    const data = await res.json().catch(() => ({}))
+      const data = await res.json().catch(() => ({}))
 
-    if (!res.ok) {
-      setError(data.error ?? '作成に失敗しました')
+      if (!res.ok) {
+        const code = data.error as string | undefined
+        setError((code && ERROR_MESSAGES[code]) ?? '予期しないエラーが発生しました')
+        return
+      }
+
       setLoading(false)
-      return
+      onSuccess(data.link)
+    } catch {
+      setError('ネットワークエラーが発生しました')
+    } finally {
+      setLoading(false)
     }
-
-    onSuccess(data.link ?? { ...initial, ...body })
   }
 
   const namespaceOptions = [
-    ...(canCreateOfficial ? [{ value: officialNamespace, label: '公式リンク (/s/...)' }] : []),
     ...(studentId ? [{ value: studentId, label: `ユーザーリンク (/${studentId}/...)` }] : []),
+    ...(canCreateOfficial ? [{ value: officialNamespace, label: '公式リンク (/s/...)' }] : []),
   ]
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-3 text-sm">
       {!isEditing && namespaceOptions.length > 1 && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">種別</label>
+        <label className="flex flex-col gap-1">
+          <span>種別</span>
           <select
             value={namespace}
             onChange={(e) => setNamespace(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+            className="rounded border px-3 py-1.5"
           >
             {namespaceOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
-        </div>
+        </label>
       )}
 
-      {!isEditing && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">スラグ</label>
-          <div className="flex items-center gap-3 mb-2">
-            <label className="flex items-center gap-1.5 text-sm cursor-pointer">
-              <input
-                type="radio"
-                checked={!useCustomSlug}
-                onChange={() => setUseCustomSlug(false)}
-              />
-              ランダム生成
-            </label>
-            <label className="flex items-center gap-1.5 text-sm cursor-pointer">
-              <input
-                type="radio"
-                checked={useCustomSlug}
-                onChange={() => setUseCustomSlug(true)}
-              />
-              カスタム指定
-            </label>
-          </div>
-          {useCustomSlug ? (
-            <input
-              type="text"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value.toLowerCase())}
-              placeholder="例: my-link (英数字・ハイフンのみ)"
-              pattern="[a-z0-9-]{1,100}"
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-            />
-          ) : (
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min={5}
-                max={10}
-                value={slugLength}
-                onChange={(e) => setSlugLength(Number(e.target.value))}
-                className="flex-1"
-              />
-              <span className="text-sm text-gray-600 w-16">{slugLength} 文字</span>
-            </div>
-          )}
+      <div className="flex flex-col gap-1">
+        <span>スラグ</span>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={slug}
+            onChange={(e) => setSlug(e.target.value.toLowerCase())}
+            placeholder="例: abc（英数字・ハイフン）"
+            pattern="[a-z0-9-]{1,100}"
+            required
+            className="rounded border px-3 py-1.5 flex-1 font-mono"
+          />
+          <button
+            type="button"
+            onClick={() => setSlug(randomSlug())}
+            className="rounded border px-3 py-1.5 hover:bg-muted whitespace-nowrap"
+          >
+            再生成
+          </button>
         </div>
-      )}
+      </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">名前（任意）</label>
+      <label className="flex flex-col gap-1">
+        <span>名前（任意）</span>
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="リンクの表示名"
           maxLength={255}
-          className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+          className="rounded border px-3 py-1.5"
         />
-      </div>
+      </label>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">転送先 URL</label>
+      <label className="flex flex-col gap-1">
+        <span>転送先 URL</span>
         <input
           type="url"
           value={targetUrl}
           onChange={(e) => setTargetUrl(e.target.value)}
           placeholder="https://example.com"
           required
-          className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+          className="rounded border px-3 py-1.5"
         />
-      </div>
+      </label>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          パスワード（任意）
-        </label>
+      <label className="flex flex-col gap-1">
+        <span>パスワード（任意）</span>
         <input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder={isEditing ? '変更する場合のみ入力' : '未設定の場合は空のまま'}
-          className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+          className="rounded border px-3 py-1.5"
         />
-      </div>
+      </label>
 
       {namespace === officialNamespace && (
-        <div className="flex items-center gap-2">
+        <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
-            id="inCollection"
             checked={inCollection}
             onChange={(e) => setInCollection(e.target.checked)}
             className="rounded"
           />
-          <label htmlFor="inCollection" className="text-sm text-gray-700 cursor-pointer">
-            リンク集に載せる
-          </label>
-        </div>
+          <span>リンク集に載せる</span>
+        </label>
       )}
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-red-600 text-xs">{error}</p>}
 
-      <div className="flex gap-2 pt-2">
+      <div className="flex gap-2 pt-1">
         <button
           type="submit"
           disabled={loading}
-          className="bg-gray-800 text-white px-4 py-2 rounded text-sm font-medium hover:bg-gray-700 disabled:opacity-50"
+          className="rounded bg-black px-3 py-1.5 text-white hover:bg-black/90 disabled:opacity-50"
         >
           {loading ? '処理中...' : isEditing ? '保存' : '作成'}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="border border-gray-300 text-gray-600 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
+          className="rounded border px-3 py-1.5 hover:bg-muted"
         >
           キャンセル
         </button>

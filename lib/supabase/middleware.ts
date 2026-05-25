@@ -16,8 +16,8 @@ function isAllowedPath(pathname: string) {
   return false
 }
 
-// 学籍番号パターン: 2文字アルファベット + 数字 (例: it123456)
-const STUDENT_ID_SLUG_PATTERN = /^\/[a-z]{2}\d+\/[^/]+\/?$/i
+// 学籍番号パターン: 数字のみ (例: 12345678)
+const STUDENT_ID_SLUG_PATTERN = /^\/\d+\/[^/]+\/?$/
 
 function isPublicLinkPath(pathname: string): boolean {
   if (pathname.startsWith('/s/')) return true
