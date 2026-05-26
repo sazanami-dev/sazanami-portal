@@ -22,6 +22,8 @@ const Header = () => {
     // { href: '/about', label: 'About' },
     { href: '/members', label: 'Members' },
     { href: '/term', label: 'Term' },
+    { href: '/links', label: 'Links' },
+    { href: '/collections', label: 'Collections' },
   ];
 
   return (
