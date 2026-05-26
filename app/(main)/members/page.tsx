@@ -38,6 +38,7 @@ export default async function MembersPage() {
         viewerRole={result.viewerRole}
         viewerId={user.id}
         members={result.members}
+        driveGrantRole={process.env.GOOGLE_DRIVE_GRANT_ROLE ?? 'member'}
       />
     </div>
   )

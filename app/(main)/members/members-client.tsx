@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { isItSchoolEmail } from '@/lib/members/email'
 import {
+  canBulkGrantDrive,
   canChangeRoles,
   canDeleteUsers,
   canEditUsers,
@@ -36,6 +37,7 @@ type Props = {
   viewerRole: AppRole
   viewerId: string
   members: MemberSummaryRow[] | MemberFullRow[]
+  driveGrantRole: string
 }
 
 const DELETE_CONFIRM_PHRASE = 'DELETE'
@@ -56,7 +58,7 @@ type AnnualGraduateRow = Pick<
   | 'role'
 >
 
-export function MembersClient({ viewerRole, viewerId, members }: Props) {
+export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }: Props) {
   const router = useRouter()
   const [busy, setBusy] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -81,6 +83,24 @@ export function MembersClient({ viewerRole, viewerId, members }: Props) {
   const [bulkDeleteFlow, setBulkDeleteFlow] = useState<{
     step: 1 | 2
     phraseInput: string
+  } | null>(null)
+  /** Drive 一括権限付与 */
+  const [driveGrantFlow, setDriveGrantFlow] = useState<{ step: 1 | 2 } | null>(null)
+  const [driveGrantResult, setDriveGrantResult] = useState<{
+    granted: number
+    grantedEmails: string[]
+    skipped: number
+    skippedEmails: string[]
+    failed: { email: string; error: string }[]
+    total: number
+  } | null>(null)
+  /** Drive 一括権限剥奪 */
+  const [driveRevokeFlow, setDriveRevokeFlow] = useState<boolean>(false)
+  const [driveRevokeResult, setDriveRevokeResult] = useState<{
+    revoked: number
+    revokedEmails: string[]
+    failed: { email: string }[]
+    total: number
   } | null>(null)
 
   /** 承認・CSV・ロール変更などの単発確認 */
@@ -356,6 +376,52 @@ export function MembersClient({ viewerRole, viewerId, members }: Props) {
     }
   }
 
+  const executeBulkGrantDrive = async () => {
+    setDriveGrantFlow(null)
+    setBusy('drive-bulk-grant')
+    setDriveGrantResult(null)
+    try {
+      const res = await fetch('/api/drive/bulk-grant', { method: 'POST' })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        alert(j?.error ?? 'Drive 一括権限付与に失敗しました')
+        return
+      }
+      setDriveGrantResult({
+        granted: j.granted ?? 0,
+        grantedEmails: j.grantedEmails ?? [],
+        skipped: j.skipped ?? 0,
+        skippedEmails: j.skippedEmails ?? [],
+        failed: j.failed ?? [],
+        total: j.total ?? 0,
+      })
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const executeBulkRevokeDrive = async () => {
+    setDriveRevokeFlow(false)
+    setBusy('drive-bulk-revoke')
+    setDriveRevokeResult(null)
+    try {
+      const res = await fetch('/api/drive/bulk-revoke', { method: 'POST' })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        alert(j?.error ?? 'Drive 権限剥奪に失敗しました')
+        return
+      }
+      setDriveRevokeResult({
+        revoked: j.revoked ?? 0,
+        revokedEmails: j.revokedEmails ?? [],
+        failed: j.failed ?? [],
+        total: j.total ?? 0,
+      })
+    } finally {
+      setBusy(null)
+    }
+  }
+
   const runConfirmedAction = async () => {
     if (!confirmAction) return
     const c = confirmAction
@@ -474,6 +540,42 @@ export function MembersClient({ viewerRole, viewerId, members }: Props) {
             }
           >
             年度切替（更新依頼）
+          </button>
+        )}
+        {canBulkGrantDrive(viewerRole) && (
+          <button
+            type="button"
+            className="rounded border bg-blue-50 px-3 py-1.5 text-sm hover:bg-blue-100 disabled:opacity-50"
+            onClick={() => setDriveGrantFlow({ step: 1 })}
+            disabled={
+              busy === 'drive-bulk-grant' ||
+              busy === 'drive-bulk-revoke' ||
+              !!confirmAction ||
+              !!annualFlow ||
+              !!bulkDeleteFlow ||
+              !!driveGrantFlow ||
+              driveRevokeFlow
+            }
+          >
+            {busy === 'drive-bulk-grant' ? '付与中…' : 'Drive 閲覧権限 一括付与'}
+          </button>
+        )}
+        {canBulkGrantDrive(viewerRole) && (
+          <button
+            type="button"
+            className="rounded border bg-red-50 px-3 py-1.5 text-sm hover:bg-red-100 disabled:opacity-50"
+            onClick={() => setDriveRevokeFlow(true)}
+            disabled={
+              busy === 'drive-bulk-grant' ||
+              busy === 'drive-bulk-revoke' ||
+              !!confirmAction ||
+              !!annualFlow ||
+              !!bulkDeleteFlow ||
+              !!driveGrantFlow ||
+              driveRevokeFlow
+            }
+          >
+            {busy === 'drive-bulk-revoke' ? '剥奪中…' : 'Drive 閲覧権限 一括剥奪'}
           </button>
         )}
       </div>
@@ -977,6 +1079,170 @@ export function MembersClient({ viewerRole, viewerId, members }: Props) {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {driveGrantFlow && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+          <div
+            className="w-full max-w-md rounded-lg border bg-background p-4 shadow-lg"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="drive-grant-dialog-title"
+          >
+            <h3 id="drive-grant-dialog-title" className="text-lg font-semibold text-blue-800">
+              Drive 閲覧権限を一括付与しますか？
+            </h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              ロールが <strong>{driveGrantRole}</strong> の active ユーザー全員に、
+              Google Drive フォルダの閲覧権限を付与します。
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded border px-3 py-1.5 text-sm"
+                onClick={() => setDriveGrantFlow(null)}
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                className="rounded bg-blue-700 px-3 py-1.5 text-sm text-white hover:bg-blue-800"
+                onClick={() => void executeBulkGrantDrive()}
+              >
+                付与を実行
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {driveGrantResult && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+          <div
+            className="w-full max-w-md rounded-lg border bg-background p-4 shadow-lg"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="drive-result-dialog-title"
+          >
+            <h3 id="drive-result-dialog-title" className="text-lg font-semibold">
+              Drive 権限付与 — 完了
+            </h3>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li>対象ユーザー数: <strong>{driveGrantResult.total}</strong></li>
+              <li className="text-green-700">
+                付与成功: <strong>{driveGrantResult.granted}</strong>
+                {(driveGrantResult.grantedEmails ?? []).length > 0 && (
+                  <ul className="mt-1 ml-4 list-disc text-xs font-normal text-green-700">
+                    {(driveGrantResult.grantedEmails ?? []).map((e) => <li key={e}>{e}</li>)}
+                  </ul>
+                )}
+              </li>
+              <li className="text-muted-foreground">
+                既に付与済み（スキップ）: <strong>{driveGrantResult.skipped}</strong>
+                {(driveGrantResult.skippedEmails ?? []).length > 0 && (
+                  <ul className="mt-1 ml-4 list-disc text-xs">
+                    {(driveGrantResult.skippedEmails ?? []).map((e) => <li key={e}>{e}</li>)}
+                  </ul>
+                )}
+              </li>
+              {(driveGrantResult.failed ?? []).length > 0 && (
+                <li className="text-red-700">
+                  失敗: <strong>{driveGrantResult.failed.length}</strong>
+                  <ul className="mt-1 ml-4 list-disc text-xs">
+                    {driveGrantResult.failed.map((f) => <li key={f.email}>{f.email}</li>)}
+                  </ul>
+                </li>
+              )}
+            </ul>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                className="rounded border px-3 py-1.5 text-sm"
+                onClick={() => setDriveGrantResult(null)}
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {driveRevokeFlow && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+          <div
+            className="w-full max-w-md rounded-lg border bg-background p-4 shadow-lg"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="drive-revoke-dialog-title"
+          >
+            <h3 id="drive-revoke-dialog-title" className="text-lg font-semibold text-red-800">
+              Drive 閲覧権限を一括剥奪しますか？
+            </h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              ロールが <strong>member・manager・admin・developer</strong> 以外のユーザー、
+              およびポータルに登録されていないユーザーの Google Drive フォルダへのアクセス権を削除します。
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded border px-3 py-1.5 text-sm"
+                onClick={() => setDriveRevokeFlow(false)}
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                className="rounded bg-red-700 px-3 py-1.5 text-sm text-white hover:bg-red-800"
+                onClick={() => void executeBulkRevokeDrive()}
+              >
+                剥奪を実行
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {driveRevokeResult && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+          <div
+            className="w-full max-w-md rounded-lg border bg-background p-4 shadow-lg"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="drive-revoke-result-title"
+          >
+            <h3 id="drive-revoke-result-title" className="text-lg font-semibold">
+              Drive 権限剥奪 — 完了
+            </h3>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li>対象ユーザー数: <strong>{driveRevokeResult.total}</strong></li>
+              <li className="text-green-700">
+                剥奪成功: <strong>{driveRevokeResult.revoked}</strong>
+                {(driveRevokeResult.revokedEmails ?? []).length > 0 && (
+                  <ul className="mt-1 ml-4 list-disc text-xs font-normal text-green-700">
+                    {(driveRevokeResult.revokedEmails ?? []).map((e) => <li key={e}>{e}</li>)}
+                  </ul>
+                )}
+              </li>
+              {(driveRevokeResult.failed ?? []).length > 0 && (
+                <li className="text-red-700">
+                  失敗: <strong>{driveRevokeResult.failed.length}</strong>
+                  <ul className="mt-1 ml-4 list-disc text-xs">
+                    {driveRevokeResult.failed.map((f) => <li key={f.email}>{f.email}</li>)}
+                  </ul>
+                </li>
+              )}
+            </ul>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                className="rounded border px-3 py-1.5 text-sm"
+                onClick={() => setDriveRevokeResult(null)}
+              >
+                閉じる
+              </button>
+            </div>
           </div>
         </div>
       )}
