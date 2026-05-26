@@ -1,4 +1,4 @@
-"use client" // useStateを使用するため追加（Next.jsのApp Routerの場合必須です）
+"use client"
 
 import type { User, UserIdentity } from '@supabase/supabase-js'
 import { LinkIdentityButton } from '@/app/(auth)/components/link-identity-button'
@@ -6,6 +6,7 @@ import { UnlinkIdentityButton } from '@/app/(auth)/components/unlink-identity-bu
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 // shadcn/ui の Dialog コンポーネントをインポート
 import {
@@ -88,6 +89,9 @@ export function JoinConnectionSection({
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
+  const searchParams = useSearchParams()
+  const hasDiscordEmailError = searchParams.get('error') === 'discord_no_email'
+
   const handleOpenModal = () => {
     setSubmitError(null)
     setIsModalOpen(true)
@@ -162,6 +166,21 @@ export function JoinConnectionSection({
           GitHub・Discord を連携すると、承認後すぐにすべての機能を利用できます。
         </p>
       </div>
+
+      {hasDiscordEmailError && (
+        <div className="rounded-md border border-yellow-400 bg-yellow-50 px-4 py-3 text-sm text-yellow-800 dark:border-yellow-600 dark:bg-yellow-950 dark:text-yellow-200">
+          Discordアカウントにメールアドレスが登録されていません。
+          <a
+            href="https://discord.com/settings/account"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-1 underline underline-offset-2"
+          >
+            Discordの設定
+          </a>
+          からメールアドレスを追加してから、再度連携してください。
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         {/* Discord */}
