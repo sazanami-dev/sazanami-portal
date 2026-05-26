@@ -15,9 +15,20 @@ export async function GET(request: Request) {
   const forwardedHost = request.headers.get('x-forwarded-host')
 
   try {
-    const code = searchParams.get('code')
     let next = searchParams.get('next') ?? '/'
     if (!next.startsWith('/')) next = '/'
+
+    // Supabase が OAuth エラーをクエリパラメータで返す場合（例: Discordにメールが未登録）
+    const oauthError = searchParams.get('error')
+    if (oauthError) {
+      const description = searchParams.get('error_description') ?? ''
+      if (/email/i.test(description)) {
+        return redirectTo(origin, forwardedHost, `${next}?error=discord_no_email`)
+      }
+      return redirectTo(origin, forwardedHost, `/error?error=${oauthError}`)
+    }
+
+    const code = searchParams.get('code')
     if (!code) {
       return redirectTo(origin, forwardedHost, '/error?error=missing_code')
     }
@@ -25,6 +36,9 @@ export async function GET(request: Request) {
     const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
     if (exchangeError) {
       console.error('[oauth] exchangeCodeForSession failed:', exchangeError.message)
+      if (/email/i.test(exchangeError.message)) {
+        return redirectTo(origin, forwardedHost, `${next}?error=discord_no_email`)
+      }
       return redirectTo(origin, forwardedHost, `/error?error=exchange_failed`)
     }
     const { data: userData, error: userErr } = await supabase.auth.getUser()
