@@ -42,7 +42,7 @@ const Header = () => {
               alt="Sazanami Logo"
               width={120}
               height={40}
-              className="w-[120px] md:w-[200px] h-auto"
+              className="w-[120px] md:w-[180px] h-auto md:p-1"
             />
           </Link>
 
