@@ -1,12 +1,28 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 const Header = () => {
   return (
-    <header className="bg-gray-800 text-white p-4">
+    <div className="fixed top-4 left-0 right-0 flex justify-center z-50 px-4">
+            <header className="
+                w-full max-w-7xl 
+                bg-white/60 backdrop-blur-md 
+                shadow-lg 
+                rounded-full 
+                px-6 py-3 
+                flex items-center justify-between
+                border border-gray-200
+            ">
       <div className="container mx-auto flex justify-between items-center">
-        <h1 className="text-xl font-bold">
-          <Link href="/">Sazanami Portal</Link>
-        </h1>
+          <Link href="/">
+          <Image 
+            src="/sazanami_dev.svg"
+            alt = "Sazanami Logo"
+            width={200}
+            height={200}
+            >
+              </Image>
+            </Link>
         <nav>
           <ul className="flex space-x-4">
             <li>
@@ -34,6 +50,7 @@ const Header = () => {
         </nav>
       </div>
     </header>
+    </div>
   );
 };
 
