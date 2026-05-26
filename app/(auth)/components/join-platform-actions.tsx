@@ -72,6 +72,19 @@ export function JoinPlatformActions() {
       }
 
       if (allOk) {
+        const driveRes = await fetch('/api/drive/grant-access', { method: 'POST' })
+        const driveJson = await driveRes.json().catch(() => ({}))
+        if (!driveRes.ok) {
+          msgs.push('Google Drive 閲覧権限の付与に失敗しました')
+          allOk = false
+        } else if (driveJson.alreadyExisted) {
+          msgs.push('Google Drive の閲覧権限は既に付与されています')
+        } else {
+          msgs.push('Google Drive の閲覧権限を付与しました')
+        }
+      }
+
+      if (allOk) {
         router.refresh()
       }
     } finally {
