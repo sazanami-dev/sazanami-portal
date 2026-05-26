@@ -26,7 +26,7 @@ function admissionYearFromStudentId(studentId: string): number | null {
   return 2000 + Number(m[1])
 }
 
-function inferClassAndAttendance(displayName: string): {
+export function inferClassAndAttendance(displayName: string): {
   className: string | null
   attendanceNumber: number | null
 } {
@@ -43,7 +43,7 @@ function inferClassAndAttendance(displayName: string): {
   return { className: null, attendanceNumber: null }
 }
 
-function normalizeName(displayName: string): string {
+export function normalizeName(displayName: string): string {
   return displayName
     .replace(/^[A-Z]{2}\d-\d{2}\s*/, '')   // 先頭のクラス-番号を除去
     .replace(/\s*[A-Z]{2}\d-\d{2}$/, '')    // 末尾のクラス-番号を除去
@@ -172,7 +172,7 @@ export function SignupForm({
       if (extracted) setStudentId(extracted)
       // 名前をスペースで姓・名に分割
       const normalized = normalizeName(dn)
-      const parts = normalized.split(' ').filter(Boolean)
+      const parts = normalized.split(/[\s　]+/).filter(Boolean)
       if (parts.length >= 2) {
         setLastName(parts[0])
         setFirstName(parts.slice(1).join(' '))
@@ -459,23 +459,31 @@ export function SignupForm({
           </div>
           </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">姓</label>
-            <Input
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              className='h-12'
-            />
+        <div className="space-y-1">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">姓</label>
+              <Input
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className='h-12'
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">名</label>
+              <Input
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="名を入力"
+                className={`h-12 ${!firstName && lastName ? 'border-amber-400 focus-visible:ring-amber-400' : ''}`}
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">名</label>
-            <Input
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              className='h-12'
-            />
-          </div>
+          {!firstName && lastName && (
+            <p className="text-xs text-amber-600">
+              名前を自動で分割できませんでした。姓・名をそれぞれ修正してください。
+            </p>
+          )}
         </div>
         
         <div className="grid grid-cols-2 gap-4">
