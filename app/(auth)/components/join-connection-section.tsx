@@ -136,6 +136,7 @@ export function JoinConnectionSection({
   }
 
   return (
+    <>
     <div className="space-y-6">
       {onBack && (
         <Button
@@ -279,8 +280,10 @@ export function JoinConnectionSection({
         </Button>
       </div>
 
-      {/* 確認用モーダル (Dialog) の追加 */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      
+    </div>
+    {/* 確認用モーダル (Dialog) の追加 */}
+    <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>登録情報の最終確認</DialogTitle>
@@ -344,6 +347,6 @@ export function JoinConnectionSection({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }

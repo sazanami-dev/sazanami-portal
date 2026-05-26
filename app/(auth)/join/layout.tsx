@@ -1,4 +1,5 @@
 import { LogoutButton } from '@/app/(auth)/components/signout-button'
+import Header from '@/app/(auth)/components/Header'
 
 export default function JoinLayout({
   children,
@@ -7,15 +8,8 @@ export default function JoinLayout({
 }) {
   return (
     <>
-      <header className="bg-gray-800 text-white p-4">
-        <div className="container mx-auto flex justify-between items-center">
-          <h1 className="text-xl font-bold">
-            Sazanami Portal
-          </h1>
-          <LogoutButton />
-        </div>
-      </header>
-      {children}
+      <Header/>
+      <main className='bg-zinc-50 px-4 py-12 dark:bg-black pt-20 min-h-screen'>{children}</main>
     </>
   )
 }

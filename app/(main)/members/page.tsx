@@ -20,7 +20,7 @@ export default async function MembersPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-6xl space-y-6 p-6">
+    <div className="container mx-auto max-w-8xl space-y-6 p-6">
       <div>
         <h1 className="text-2xl font-bold">メンバー一覧</h1>
         {canManagePendingMembers(result.viewerRole) && (
