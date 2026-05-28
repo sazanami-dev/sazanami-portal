@@ -30,12 +30,14 @@ const PortalHeader = () => {
               
               {/* 左側: ロゴ & タイトル */}
               <Link href="/portal" className="flex items-center gap-3 flex-shrink-0">
-                <Image 
+                <Image
                   src="/sazanami_dev.svg"
                   alt="Sazanami Logo"
                   width={120}
                   height={40}
+                  loading="eager"
                   className="w-[100px] md:w-[180px] h-auto md:p-1"
+                  style={{ height: 'auto' }}
                 />
                
                

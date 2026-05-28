@@ -39,12 +39,14 @@ const Header = () => {
       ">
         <div className="container mx-auto flex justify-between items-center w-full">
           <Link href="/" className="flex-shrink-0">
-            <Image 
+            <Image
               src="/sazanami_dev.svg"
               alt="Sazanami Logo"
               width={120}
               height={40}
+              loading="eager"
               className="w-[120px] md:w-[180px] h-auto md:p-1"
+              style={{ height: 'auto' }}
             />
           </Link>
 
