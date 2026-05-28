@@ -17,6 +17,7 @@ import {
 } from '@/lib/members/permissions'
 import type { IdentityInfo, MemberFullRow, MemberSummaryRow } from '@/lib/members/service'
 
+
 const ALL_ROLES: AppRole[] = [
   'admin',
   'developer',
@@ -64,11 +65,14 @@ function AgreeBadge({ agreed }: { agreed: boolean }) {
 }
 
 function DiscordBadge({ info }: { info: IdentityInfo | null }) {
-  if (!info) return <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-400">未連携</span>
   return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-xs text-muted-foreground">{info.username.replace(/#0$/, '')}</span>
-      {!info.isServerJoined && (
+    <div className="flex flex-col gap-0">
+      <span className="text-xs text-muted-foreground/60">discord:</span>
+      {info
+        ? <span className="break-all text-xs text-muted-foreground">{info.username.replace(/#0$/, '')}</span>
+        : <span className="inline-flex w-fit rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-400">未連携</span>
+      }
+      {info && !info.isServerJoined && (
         <span className="inline-flex w-fit rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">未参加</span>
       )}
     </div>
@@ -76,11 +80,14 @@ function DiscordBadge({ info }: { info: IdentityInfo | null }) {
 }
 
 function GitHubBadge({ info }: { info: IdentityInfo | null }) {
-  if (!info) return <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-400">未連携</span>
   return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-xs text-muted-foreground">{info.username}</span>
-      {!info.isServerJoined && (
+    <div className="flex flex-col gap-0">
+      <span className="text-xs text-muted-foreground/60">github:</span>
+      {info
+        ? <span className="break-all text-xs text-muted-foreground">{info.username}</span>
+        : <span className="inline-flex w-fit rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-400">未連携</span>
+      }
+      {info && !info.isServerJoined && (
         <span className="inline-flex w-fit rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">未参加</span>
       )}
     </div>
@@ -776,25 +783,25 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
               <table className="w-full min-w-[760px] text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">名前</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">学籍番号</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">メール</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">クラス</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">出席番号</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">卒業年</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">操作</th>
+                    <th className="px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">名前</th>
+                    <th className="px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">学籍番号</th>
+                    <th className="px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">メール</th>
+                    <th className="px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">クラス</th>
+                    <th className="px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">出席番号</th>
+                    <th className="px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">卒業年</th>
+                    <th className="px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {graduates.map((g) => (
                     <tr key={g.id} className="transition-colors hover:bg-muted/20">
-                      <td className="px-3 py-2.5 font-medium">{g.name}</td>
-                      <td className="px-3 py-2.5 text-xs text-muted-foreground">{g.student_id ?? '—'}</td>
+                      <td className="px-2 py-1.5 font-medium">{g.name}</td>
+                      <td className="px-2 py-1.5 text-xs text-muted-foreground">{g.student_id ?? '—'}</td>
                       <td className="max-w-[220px] truncate px-3 py-2.5 text-xs text-muted-foreground">{g.email}</td>
-                      <td className="px-3 py-2.5 text-muted-foreground">{g.class_name ?? '—'}</td>
-                      <td className="px-3 py-2.5 text-muted-foreground">{g.attendance_number ?? '—'}</td>
-                      <td className="px-3 py-2.5 text-muted-foreground">{g.expected_graduation_year ?? '—'}</td>
-                      <td className="px-3 py-2.5">
+                      <td className="px-2 py-1.5 text-muted-foreground">{g.class_name ?? '—'}</td>
+                      <td className="px-2 py-1.5 text-muted-foreground">{g.attendance_number ?? '—'}</td>
+                      <td className="px-2 py-1.5 text-muted-foreground">{g.expected_graduation_year ?? '—'}</td>
+                      <td className="px-2 py-1.5">
                         <button
                           type="button"
                           className="rounded-md border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
@@ -891,21 +898,9 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
                 <RoleBadge role={r.role} />
                 <StatusBadge status={r.status} />
               </div>
-              <div className="mt-2.5 space-y-1.5 text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="w-14 shrink-0 text-muted-foreground">Discord</span>
-                  {r.discord
-                    ? <span className="text-muted-foreground">{r.discord.username.replace(/#0$/, '')}{!r.discord.isServerJoined && <span className="ml-1.5 inline-flex rounded-full bg-amber-100 px-1.5 py-0.5 font-medium text-amber-700">未参加</span>}</span>
-                    : <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 font-medium text-zinc-400">未連携</span>
-                  }
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-14 shrink-0 text-muted-foreground">GitHub</span>
-                  {r.github
-                    ? <span className="text-muted-foreground">{r.github.username}{!r.github.isServerJoined && <span className="ml-1.5 inline-flex rounded-full bg-amber-100 px-1.5 py-0.5 font-medium text-amber-700">未参加</span>}</span>
-                    : <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 font-medium text-zinc-400">未連携</span>
-                  }
-                </div>
+              <div className="mt-2.5 flex gap-4 text-xs">
+                <DiscordBadge info={r.discord} />
+                <GitHubBadge info={r.github} />
               </div>
             </div>
           )
@@ -920,41 +915,44 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">名前</th>
-              <th className="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground 2xl:table-cell">カナ</th>
-              <th className="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:table-cell">学籍番号</th>
-              <th className="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:table-cell">メール</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">クラス</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">出席番号</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">ロール</th>
-              <th className="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground 2xl:table-cell">卒業年</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">状態</th>
-              <th className="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground 2xl:table-cell">会則</th>
-              <th className="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground 2xl:table-cell">TechTrain</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Discord</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">GitHub</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">操作</th>
+              <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">名前</th>
+              <th className="hidden px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground 2xl:table-cell">カナ</th>
+              <th className="hidden px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:table-cell">学籍番号</th>
+              <th className="hidden px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:table-cell">メール</th>
+              <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">クラス</th>
+              <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">出席</th>
+              <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">ロール</th>
+              <th className="hidden px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground 2xl:table-cell">卒業年</th>
+              <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">状態</th>
+              <th className="hidden px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground 2xl:table-cell">会則</th>
+              <th className="hidden px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground 2xl:table-cell">TechTrain</th>
+              <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Discord / GitHub</th>
+              <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">操作</th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {visibleFullRows.map((r) => (
               <tr key={r.id} className="transition-colors hover:bg-muted/30">
-                <td className="px-3 py-2.5 font-medium">{r.name}</td>
-                <td className="hidden px-3 py-2.5 text-xs text-muted-foreground 2xl:table-cell">{r.name_kana}</td>
-                <td className="hidden px-3 py-2.5 text-xs text-muted-foreground xl:table-cell">{r.student_id ?? '—'}</td>
-                <td className="hidden max-w-[150px] truncate px-3 py-2.5 text-xs text-muted-foreground xl:table-cell">{r.email}</td>
-                <td className="px-3 py-2.5 font-medium text-muted-foreground">{r.class_name ?? '—'}</td>
-                <td className="px-3 py-2.5 text-muted-foreground">
+                <td className="px-2 py-1.5 font-medium">{r.name}</td>
+                <td className="hidden px-2 py-1.5 text-xs text-muted-foreground 2xl:table-cell">{r.name_kana}</td>
+                <td className="hidden px-2 py-1.5 text-xs text-muted-foreground xl:table-cell">{r.student_id ?? '—'}</td>
+                <td className="hidden max-w-[160px] truncate px-2 py-1.5 text-xs text-muted-foreground xl:table-cell">{r.email}</td>
+                <td className="px-2 py-1.5 font-medium text-muted-foreground">{r.class_name ?? '—'}</td>
+                <td className="px-2 py-1.5 text-muted-foreground">
                   {r.attendance_number != null ? String(r.attendance_number).padStart(2, '0') : '—'}
                 </td>
-                <td className="px-3 py-2.5"><RoleBadge role={r.role} /></td>
-                <td className="hidden px-3 py-2.5 text-muted-foreground 2xl:table-cell">{r.expected_graduation_year ?? '—'}</td>
-                <td className="px-3 py-2.5"><StatusBadge status={r.status} /></td>
-                <td className="hidden px-3 py-2.5 2xl:table-cell"><AgreeBadge agreed={r.tos_agreed} /></td>
-                <td className="hidden px-3 py-2.5 2xl:table-cell"><AgreeBadge agreed={r.tech_train_agreed} /></td>
-                <td className="px-3 py-2.5"><DiscordBadge info={r.discord} /></td>
-                <td className="px-3 py-2.5"><GitHubBadge info={r.github} /></td>
-                <td className="px-3 py-2.5">
+                <td className="px-2 py-1.5"><RoleBadge role={r.role} /></td>
+                <td className="hidden px-2 py-1.5 text-muted-foreground 2xl:table-cell">{r.expected_graduation_year ?? '—'}</td>
+                <td className="px-2 py-1.5"><StatusBadge status={r.status} /></td>
+                <td className="hidden px-2 py-1.5 2xl:table-cell"><AgreeBadge agreed={r.tos_agreed} /></td>
+                <td className="hidden px-2 py-1.5 2xl:table-cell"><AgreeBadge agreed={r.tech_train_agreed} /></td>
+                <td className="w-36 px-2 py-1.5">
+                  <div className="flex flex-col gap-1.5">
+                    <DiscordBadge info={r.discord} />
+                    <GitHubBadge info={r.github} />
+                  </div>
+                </td>
+                <td className="px-2 py-1.5">
                   {(() => {
                     const isDisabled = busy === r.id || !!confirmAction || !!annualFlow || !!bulkDeleteFlow
                     const showPromote = canPromoteMemberToManager(viewerRole) && r.role === 'member' && isItSchoolEmail(r.email)
