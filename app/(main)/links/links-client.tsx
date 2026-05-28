@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { ShortLink } from '@/lib/links/service'
 import LinkForm from './link-form'
 
@@ -29,6 +29,18 @@ export default function LinksClient({
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editTarget, setEditTarget] = useState<ShortLink | null>(null)
   const [activeTab, setActiveTab] = useState(currentUserId)
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false)
+      }
+    }
+    if (showUserMenu) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showUserMenu])
 
   function buildLinkUrl(link: ShortLink): string {
     if (link.namespace === officialNamespace) return `/s/${link.slug}`
@@ -84,9 +96,56 @@ export default function LinksClient({
         )}
       </div>
 
-      <div className={showTabs ? 'flex gap-6 items-start' : ''}>
+      {showTabs && (
+        <div className="md:hidden relative" ref={userMenuRef}>
+          <button
+            onClick={() => setShowUserMenu((v) => !v)}
+            className="flex items-center gap-2 rounded border px-3 py-1.5 text-sm hover:bg-muted w-full"
+          >
+            <span className="flex-1 text-left truncate">
+              {tabs.find((t) => t.userId === activeTab)?.name ?? ''}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {links.filter((l) => l.createdBy === activeTab || (!l.createdBy && activeTab === currentUserId)).length}
+            </span>
+            <svg
+              className={`w-4 h-4 shrink-0 transition-transform ${showUserMenu ? 'rotate-180' : ''}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {showUserMenu && (
+            <div className="absolute left-0 right-0 top-full mt-1 z-20 rounded border bg-background shadow-md">
+              <ul className="max-h-60 overflow-y-auto py-1">
+                {tabs.map((tab) => {
+                  const count = links.filter(
+                    (l) => l.createdBy === tab.userId || (!l.createdBy && tab.userId === currentUserId)
+                  ).length
+                  const active = activeTab === tab.userId
+                  return (
+                    <li key={tab.userId}>
+                      <button
+                        onClick={() => { setActiveTab(tab.userId); setShowUserMenu(false) }}
+                        className={`w-full text-left px-3 py-2 text-sm flex justify-between items-center gap-2 transition-colors ${
+                          active ? 'bg-black text-white font-medium' : 'hover:bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        <span className="truncate">{tab.name}</span>
+                        <span className={`text-xs shrink-0 ${active ? 'text-white/60' : ''}`}>{count}</span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className={showTabs ? 'md:flex md:gap-6 md:items-start' : ''}>
         {showTabs && (
-          <aside className="w-44 shrink-0 sticky top-6">
+          <aside className="hidden md:block w-44 shrink-0 sticky top-6">
             <ul className="space-y-0.5 max-h-[70vh] overflow-y-auto">
               {tabs.map((tab) => {
                 const count = links.filter(
