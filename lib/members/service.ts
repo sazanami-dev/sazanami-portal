@@ -8,6 +8,11 @@ export type MemberSummaryRow = {
   name: string
 }
 
+export type IdentityInfo = {
+  username: string
+  isServerJoined: boolean
+}
+
 export type MemberFullRow = {
   id: string
   role: string
@@ -21,11 +26,13 @@ export type MemberFullRow = {
   status: string
   tos_agreed: boolean
   tech_train_agreed: boolean
+  discord: IdentityInfo | null
+  github: IdentityInfo | null
   created_at: string
   updated_at: string
 }
 
-function mapFullRow(r: Record<string, unknown>): Omit<MemberFullRow, 'tos_agreed' | 'tech_train_agreed'> {
+function mapFullRow(r: Record<string, unknown>): Omit<MemberFullRow, 'tos_agreed' | 'tech_train_agreed' | 'discord' | 'github'> {
   return {
     id: String(r.id),
     role: String(r.role),
@@ -58,7 +65,7 @@ export async function getViewerRole(userId: string): Promise<AppRole | null> {
 }
 
 export async function fetchMembersForViewer(viewerId: string): Promise<
-  | { ok: true; viewerRole: AppRole; members: MemberSummaryRow[] | MemberFullRow[] }
+  | { ok: true; viewerRole: AppRole; members: MemberSummaryRow[] | MemberFullRow[]; memberCount: number }
   | { ok: false; error: string }
 > {
   const admin = createAdminClient()
@@ -92,6 +99,8 @@ export async function fetchMembersForViewer(viewerId: string): Promise<
     return String(a.name).localeCompare(String(b.name), 'ja')
   })
 
+  const memberCount = rows.filter((r) => r.role !== 'admin').length
+
   if (viewerRole === 'member') {
     const filtered = sorted.filter((r) => isItSchoolEmail(String(r.email)))
     const summaries: MemberSummaryRow[] = filtered.map((r) => ({
@@ -99,7 +108,7 @@ export async function fetchMembersForViewer(viewerId: string): Promise<
       class_name: r.class_name != null ? String(r.class_name) : null,
       name: String(r.name),
     }))
-    return { ok: true, viewerRole, members: summaries }
+    return { ok: true, viewerRole, members: summaries, memberCount }
   }
 
   const userIds = sorted.map((r) => String(r.id))
@@ -121,12 +130,28 @@ export async function fetchMembersForViewer(viewerId: string): Promise<
     agreementMap.set(r.user_id, prev)
   }
 
+  const { data: identityRows } = await admin
+    .from('user_identities')
+    .select('user_id, provider, username, is_server_joined')
+    .in('user_id', userIds)
+
+  const identityMap = new Map<string, { discord: IdentityInfo | null; github: IdentityInfo | null }>()
+  for (const row of identityRows ?? []) {
+    const r = row as { user_id: string; provider: string; username: string; is_server_joined: boolean }
+    const prev = identityMap.get(r.user_id) ?? { discord: null, github: null }
+    const info: IdentityInfo = { username: r.username, isServerJoined: r.is_server_joined }
+    if (r.provider === 'discord') prev.discord = info
+    if (r.provider === 'github') prev.github = info
+    identityMap.set(r.user_id, prev)
+  }
+
   const full: MemberFullRow[] = sorted.map((r) => {
     const base = mapFullRow(r as Record<string, unknown>)
     const a = agreementMap.get(base.id) ?? { tos: false, tech: false }
-    return { ...base, tos_agreed: a.tos, tech_train_agreed: a.tech }
+    const identity = identityMap.get(base.id) ?? { discord: null, github: null }
+    return { ...base, tos_agreed: a.tos, tech_train_agreed: a.tech, ...identity }
   })
-  return { ok: true, viewerRole, members: full }
+  return { ok: true, viewerRole, members: full, memberCount }
 }
 
 export type MemberExportCsvRow = {
