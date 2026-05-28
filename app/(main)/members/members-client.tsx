@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { isItSchoolEmail } from '@/lib/members/email'
 import {
   canBulkGrantDrive,
@@ -15,7 +15,7 @@ import {
   canViewFullProfiles,
   type AppRole,
 } from '@/lib/members/permissions'
-import type { MemberFullRow, MemberSummaryRow } from '@/lib/members/service'
+import type { IdentityInfo, MemberFullRow, MemberSummaryRow } from '@/lib/members/service'
 
 const ALL_ROLES: AppRole[] = [
   'admin',
@@ -24,6 +24,99 @@ const ALL_ROLES: AppRole[] = [
   'member',
   'guest',
 ]
+
+const ROLE_COLORS: Record<string, string> = {
+  admin:     'bg-red-100 text-red-700',
+  developer: 'bg-purple-100 text-purple-700',
+  manager:   'bg-blue-100 text-blue-700',
+  member:    'bg-emerald-100 text-emerald-700',
+  guest:     'bg-zinc-100 text-zinc-500',
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  active:   'bg-emerald-100 text-emerald-700',
+  pending:  'bg-amber-100 text-amber-700',
+  renewing: 'bg-orange-100 text-orange-700',
+}
+
+function RoleBadge({ role }: { role: string }) {
+  return (
+    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${ROLE_COLORS[role] ?? ROLE_COLORS.guest}`}>
+      {role}
+    </span>
+  )
+}
+
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[status] ?? 'bg-zinc-100 text-zinc-500'}`}>
+      {status}
+    </span>
+  )
+}
+
+function AgreeBadge({ agreed }: { agreed: boolean }) {
+  return agreed ? (
+    <span className="inline-flex whitespace-nowrap rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">同意済み</span>
+  ) : (
+    <span className="inline-flex whitespace-nowrap rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500">未同意</span>
+  )
+}
+
+function DiscordBadge({ info }: { info: IdentityInfo | null }) {
+  if (!info) return <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-400">未連携</span>
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-xs text-muted-foreground">{info.username.replace(/#0$/, '')}</span>
+      {!info.isServerJoined && (
+        <span className="inline-flex w-fit rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">未参加</span>
+      )}
+    </div>
+  )
+}
+
+function GitHubBadge({ info }: { info: IdentityInfo | null }) {
+  if (!info) return <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-400">未連携</span>
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-xs text-muted-foreground">{info.username}</span>
+      {!info.isServerJoined && (
+        <span className="inline-flex w-fit rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">未参加</span>
+      )}
+    </div>
+  )
+}
+
+function ActionMenu({ children }: { children: (close: () => void) => React.ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        className="flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-sm font-medium shadow-sm transition-colors hover:bg-muted"
+        onClick={() => setOpen((o) => !o)}
+      >
+        操作 <span className="text-xs opacity-50">▾</span>
+      </button>
+      {open && (
+        <div className="absolute right-0 z-40 mt-1 min-w-max overflow-hidden rounded-lg border bg-background shadow-lg">
+          {children(() => setOpen(false))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 /** admin は admin 付与不可（developer のみ）。既存 admin の表示用に admin を含める */
 function selectableRoles(actor: AppRole, current: AppRole): AppRole[] {
@@ -64,6 +157,7 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
   const [searchQuery, setSearchQuery] = useState('')
   const [fullSortKey, setFullSortKey] = useState<FullSortKey>('class')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [selectedClass, setSelectedClass] = useState('')
   const [editTarget, setEditTarget] = useState<MemberFullRow | null>(null)
   const [form, setForm] = useState<Partial<MemberFullRow>>({})
   const [graduates, setGraduates] = useState<AnnualGraduateRow[] | null>(null)
@@ -118,6 +212,16 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
   )
   const normalizedQuery = searchQuery.trim().toLowerCase()
 
+  const classOptions = useMemo(() => {
+    const src = full
+      ? full.filter((r) => r.role !== 'admin')
+      : (members as MemberSummaryRow[])
+    const classes = [
+      ...new Set(src.map((r) => r.class_name).filter((c): c is string => c !== null)),
+    ]
+    return classes.sort((a, b) => a.localeCompare(b, 'ja'))
+  }, [full, members])
+
   const summaryRows = useMemo(() => {
     if (viewerRole !== 'member') return []
     const rows = members as MemberSummaryRow[]
@@ -130,7 +234,11 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
         )
       : rows
 
-    const sorted = [...filtered].sort((a, b) => {
+    const classFiltered = selectedClass
+      ? filtered.filter((r) => r.class_name === selectedClass)
+      : filtered
+
+    const sorted = [...classFiltered].sort((a, b) => {
       const classComp = String(a.class_name ?? '').localeCompare(
         String(b.class_name ?? ''),
         'ja'
@@ -142,7 +250,7 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
       return sortOrder === 'asc' ? comp : -comp
     })
     return sorted
-  }, [members, normalizedQuery, sortOrder, viewerRole])
+  }, [members, normalizedQuery, selectedClass, sortOrder, viewerRole])
 
   const visibleFullRows = useMemo(() => {
     if (!full) return []
@@ -150,7 +258,6 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
       ? full.filter((r) =>
           [
             r.role,
-            r.email,
             r.student_id ?? '',
             r.class_name ?? '',
             r.attendance_number ?? '',
@@ -165,7 +272,11 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
         )
       : full
 
-    const sorted = [...filtered].sort((a, b) => {
+    const classFiltered = selectedClass
+      ? filtered.filter((r) => r.class_name === selectedClass)
+      : filtered
+
+    const sorted = [...classFiltered].sort((a, b) => {
       let comp = 0
       if (fullSortKey === 'email') {
         comp = String(a.email ?? '').localeCompare(String(b.email ?? ''), 'ja')
@@ -188,7 +299,7 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
       return sortOrder === 'asc' ? comp : -comp
     })
     return sorted
-  }, [full, fullSortKey, normalizedQuery, sortOrder])
+  }, [full, fullSortKey, normalizedQuery, selectedClass, sortOrder])
 
   const openEdit = (row: MemberFullRow) => {
     setEditTarget(row)
@@ -447,38 +558,69 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
   if (viewerRole === 'member') {
     return (
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2.5">
           <input
             type="text"
-            className="min-w-[220px] rounded border px-3 py-1.5 text-sm"
+            className="min-w-[180px] flex-1 rounded-md border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
             placeholder="クラス・名前で検索"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
           <select
-            className="rounded border px-2 py-1.5 text-sm"
+            className="rounded-md border bg-background px-2 py-1.5 text-sm focus:outline-none"
+            value={selectedClass}
+            onChange={(e) => setSelectedClass(e.target.value)}
+          >
+            <option value="">全クラス</option>
+            {classOptions.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <select
+            className="rounded-md border bg-background px-2 py-1.5 text-sm focus:outline-none"
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
           >
             <option value="asc">昇順</option>
             <option value="desc">降順</option>
           </select>
+          <span className="ml-auto rounded-md bg-background px-3 py-1 text-sm font-medium text-muted-foreground ring-1 ring-border">
+            メンバー {summaryRows.length} 人
+          </span>
         </div>
-        <div className="overflow-x-auto rounded border">
+
+        {/* モバイル: カードリスト */}
+        <div className="flex flex-col gap-2 sm:hidden">
+          {summaryRows.map((r) => (
+            <div key={r.id} className="flex items-center justify-between rounded-lg border bg-card px-4 py-3 shadow-sm">
+              <span className="font-medium">{r.name}</span>
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">{r.class_name ?? '—'}</span>
+            </div>
+          ))}
+          {summaryRows.length === 0 && (
+            <p className="py-8 text-center text-sm text-muted-foreground">該当するメンバーがいません</p>
+          )}
+        </div>
+
+        {/* デスクトップ: テーブル */}
+        <div className="hidden overflow-x-auto rounded-lg border shadow-sm sm:block">
           <table className="w-full text-sm">
-            <thead className="bg-muted">
-              <tr>
-                <th className="px-3 py-2 text-left">クラス</th>
-                <th className="px-3 py-2 text-left">名前</th>
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">クラス</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">名前</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y">
               {summaryRows.map((r) => (
-                <tr key={r.id} className="border-t">
-                  <td className="px-3 py-2">{r.class_name ?? '—'}</td>
-                  <td className="px-3 py-2">{r.name}</td>
+                <tr key={r.id} className="transition-colors hover:bg-muted/30">
+                  <td className="px-4 py-2.5 font-medium text-muted-foreground">{r.class_name ?? '—'}</td>
+                  <td className="px-4 py-2.5">{r.name}</td>
                 </tr>
               ))}
+              {summaryRows.length === 0 && (
+                <tr><td colSpan={2} className="py-8 text-center text-sm text-muted-foreground">該当するメンバーがいません</td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -488,96 +630,114 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="text"
-          className="min-w-[240px] rounded border px-3 py-1.5 text-sm"
-          placeholder="検索"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          disabled={!!confirmAction || !!annualFlow || !!bulkDeleteFlow}
-        />
-        <select
-          className="rounded border px-2 py-1.5 text-sm"
-          value={fullSortKey}
-          onChange={(e) => setFullSortKey(e.target.value as FullSortKey)}
-          disabled={!!confirmAction || !!annualFlow || !!bulkDeleteFlow}
-        >
-          <option value="email">メール順</option>
-          <option value="class">クラス順</option>
-        </select>
-        <select
-          className="rounded border px-2 py-1.5 text-sm"
-          value={sortOrder}
-          onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-          disabled={!!confirmAction || !!annualFlow || !!bulkDeleteFlow}
-        >
-          <option value="asc">昇順</option>
-          <option value="desc">降順</option>
-        </select>
-        {canExportCsv(viewerRole) && (
-          <button
-            type="button"
-            className="rounded border bg-background px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
-            onClick={() => setConfirmAction({ kind: 'export' })}
-            disabled={
-              busy === 'export' || !!confirmAction || !!annualFlow || !!bulkDeleteFlow
-            }
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2.5">
+          <input
+            type="text"
+            className="min-w-[220px] rounded-md border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
+            placeholder="名前・メール・クラスなどで検索"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            disabled={!!confirmAction || !!annualFlow || !!bulkDeleteFlow}
+          />
+          <select
+            className="rounded-md border bg-background px-2 py-1.5 text-sm focus:outline-none"
+            value={selectedClass}
+            onChange={(e) => setSelectedClass(e.target.value)}
+            disabled={!!confirmAction || !!annualFlow || !!bulkDeleteFlow}
           >
-            CSV エクスポート
-          </button>
-        )}
-        {canRunAnnualRollover(viewerRole) && (
-          <button
-            type="button"
-            className="rounded border bg-amber-50 px-3 py-1.5 text-sm hover:bg-amber-100 disabled:opacity-50"
-            onClick={() => setAnnualFlow({ step: 1, phraseInput: '' })}
-            disabled={
-              busy === 'annual-rollover' ||
-              !!confirmAction ||
-              !!annualFlow ||
-              !!bulkDeleteFlow
-            }
+            <option value="">全クラス</option>
+            {classOptions.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <select
+            className="rounded-md border bg-background px-2 py-1.5 text-sm focus:outline-none"
+            value={fullSortKey}
+            onChange={(e) => setFullSortKey(e.target.value as FullSortKey)}
+            disabled={!!confirmAction || !!annualFlow || !!bulkDeleteFlow}
           >
-            年度切替（更新依頼）
-          </button>
-        )}
-        {canBulkGrantDrive(viewerRole) && (
-          <button
-            type="button"
-            className="rounded border bg-blue-50 px-3 py-1.5 text-sm hover:bg-blue-100 disabled:opacity-50"
-            onClick={() => setDriveGrantFlow({ step: 1 })}
-            disabled={
-              busy === 'drive-bulk-grant' ||
-              busy === 'drive-bulk-revoke' ||
-              !!confirmAction ||
-              !!annualFlow ||
-              !!bulkDeleteFlow ||
-              !!driveGrantFlow ||
-              driveRevokeFlow
-            }
+            <option value="email">メール順</option>
+            <option value="class">クラス順</option>
+          </select>
+          <select
+            className="rounded-md border bg-background px-2 py-1.5 text-sm focus:outline-none"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+            disabled={!!confirmAction || !!annualFlow || !!bulkDeleteFlow}
           >
-            {busy === 'drive-bulk-grant' ? '付与中…' : 'Drive 閲覧権限 一括付与'}
-          </button>
-        )}
-        {canBulkGrantDrive(viewerRole) && (
-          <button
-            type="button"
-            className="rounded border bg-red-50 px-3 py-1.5 text-sm hover:bg-red-100 disabled:opacity-50"
-            onClick={() => setDriveRevokeFlow(true)}
-            disabled={
-              busy === 'drive-bulk-grant' ||
-              busy === 'drive-bulk-revoke' ||
-              !!confirmAction ||
-              !!annualFlow ||
-              !!bulkDeleteFlow ||
-              !!driveGrantFlow ||
-              driveRevokeFlow
-            }
-          >
-            {busy === 'drive-bulk-revoke' ? '剥奪中…' : 'Drive 閲覧権限 一括剥奪'}
-          </button>
-        )}
+            <option value="asc">昇順</option>
+            <option value="desc">降順</option>
+          </select>
+          <span className="ml-auto rounded-md bg-background px-3 py-1 text-sm font-medium text-muted-foreground ring-1 ring-border">
+            メンバー {visibleFullRows.filter((r) => r.role !== 'admin').length} 人
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {canExportCsv(viewerRole) && (
+            <button
+              type="button"
+              className="rounded-md border bg-background px-3 py-1.5 text-sm font-medium shadow-sm transition-colors hover:bg-muted disabled:opacity-50"
+              onClick={() => setConfirmAction({ kind: 'export' })}
+              disabled={
+                busy === 'export' || !!confirmAction || !!annualFlow || !!bulkDeleteFlow
+              }
+            >
+              CSV エクスポート
+            </button>
+          )}
+          {canRunAnnualRollover(viewerRole) && (
+            <button
+              type="button"
+              className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-800 shadow-sm transition-colors hover:bg-amber-100 disabled:opacity-50"
+              onClick={() => setAnnualFlow({ step: 1, phraseInput: '' })}
+              disabled={
+                busy === 'annual-rollover' ||
+                !!confirmAction ||
+                !!annualFlow ||
+                !!bulkDeleteFlow
+              }
+            >
+              年度切替（更新依頼）
+            </button>
+          )}
+          {canBulkGrantDrive(viewerRole) && (
+            <button
+              type="button"
+              className="rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-800 shadow-sm transition-colors hover:bg-blue-100 disabled:opacity-50"
+              onClick={() => setDriveGrantFlow({ step: 1 })}
+              disabled={
+                busy === 'drive-bulk-grant' ||
+                busy === 'drive-bulk-revoke' ||
+                !!confirmAction ||
+                !!annualFlow ||
+                !!bulkDeleteFlow ||
+                !!driveGrantFlow ||
+                driveRevokeFlow
+              }
+            >
+              {busy === 'drive-bulk-grant' ? '付与中…' : 'Drive 閲覧権限 一括付与'}
+            </button>
+          )}
+          {canBulkGrantDrive(viewerRole) && (
+            <button
+              type="button"
+              className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 shadow-sm transition-colors hover:bg-red-100 disabled:opacity-50"
+              onClick={() => setDriveRevokeFlow(true)}
+              disabled={
+                busy === 'drive-bulk-grant' ||
+                busy === 'drive-bulk-revoke' ||
+                !!confirmAction ||
+                !!annualFlow ||
+                !!bulkDeleteFlow ||
+                !!driveGrantFlow ||
+                driveRevokeFlow
+              }
+            >
+              {busy === 'drive-bulk-revoke' ? '剥奪中…' : 'Drive 閲覧権限 一括剥奪'}
+            </button>
+          )}
+        </div>
       </div>
 
       {graduates && (
@@ -612,39 +772,33 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
           {graduates.length === 0 ? (
             <p className="text-sm text-muted-foreground">卒業対象者はいません。</p>
           ) : (
-            <div className="overflow-x-auto rounded border bg-background">
+            <div className="overflow-x-auto rounded-lg border bg-background">
               <table className="w-full min-w-[760px] text-sm">
-                <thead className="bg-muted">
-                  <tr>
-                    <th className="px-2 py-2 text-left">名前</th>
-                    <th className="px-2 py-2 text-left">学籍番号</th>
-                    <th className="px-2 py-2 text-left">メール</th>
-                    <th className="px-2 py-2 text-left">クラス</th>
-                    <th className="px-2 py-2 text-left">出席番号</th>
-                    <th className="px-2 py-2 text-left">卒業年</th>
-                    <th className="px-2 py-2 text-left">操作</th>
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">名前</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">学籍番号</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">メール</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">クラス</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">出席番号</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">卒業年</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">操作</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y">
                   {graduates.map((g) => (
-                    <tr key={g.id} className="border-t">
-                      <td className="px-2 py-2">{g.name}</td>
-                      <td className="px-2 py-2 text-xs">{g.student_id ?? '—'}</td>
-                      <td className="max-w-[220px] truncate px-2 py-2 text-xs">{g.email}</td>
-                      <td className="px-2 py-2">{g.class_name ?? '—'}</td>
-                      <td className="px-2 py-2">{g.attendance_number ?? '—'}</td>
-                      
-                      <td className="px-2 py-2">{g.expected_graduation_year ?? '—'}</td>
-                      <td className="px-2 py-2">
+                    <tr key={g.id} className="transition-colors hover:bg-muted/20">
+                      <td className="px-3 py-2.5 font-medium">{g.name}</td>
+                      <td className="px-3 py-2.5 text-xs text-muted-foreground">{g.student_id ?? '—'}</td>
+                      <td className="max-w-[220px] truncate px-3 py-2.5 text-xs text-muted-foreground">{g.email}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground">{g.class_name ?? '—'}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground">{g.attendance_number ?? '—'}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground">{g.expected_graduation_year ?? '—'}</td>
+                      <td className="px-3 py-2.5">
                         <button
                           type="button"
-                          className="rounded border border-red-200 px-2 py-0.5 text-xs text-red-700 hover:bg-red-50"
-                          disabled={
-                            busy === g.id ||
-                            !!confirmAction ||
-                            !!annualFlow ||
-                            !!bulkDeleteFlow
-                          }
+                          className="rounded-md border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
+                          disabled={busy === g.id || !!confirmAction || !!annualFlow || !!bulkDeleteFlow}
                           onClick={() => openDeleteFlow(g)}
                         >
                           削除
@@ -659,165 +813,217 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
         </section>
       )}
 
-      <div className="overflow-x-auto rounded border">
-        <table className="w-full min-w-[1080px] text-sm">
-          <thead className="bg-muted">
-            <tr>
-              <th className="px-2 py-2 text-left">名前</th>
-              <th className="px-2 py-2 text-left">カナ</th>
-              <th className="px-2 py-2 text-left">学籍番号</th>
-              <th className="px-2 py-2 text-left">メール</th>
-              <th className="px-2 py-2 text-left">クラス</th>
-              <th className="px-2 py-2 text-left">出席番号</th>
-              <th className="px-2 py-2 text-left">ロール</th>
-              <th className="px-2 py-2 text-left">卒業年</th>
-              <th className="px-2 py-2 text-left">状態</th>
-              <th className="px-2 py-2 text-left">会則</th>
-              <th className="px-2 py-2 text-left">TechTrain</th>
-              <th className="px-2 py-2 text-left">操作</th>
+      {/* モバイル: カードリスト */}
+      <div className="flex flex-col gap-3 lg:hidden">
+        {visibleFullRows.map((r) => {
+          const isDisabled = busy === r.id || !!confirmAction || !!annualFlow || !!bulkDeleteFlow
+          const showPromote = canPromoteMemberToManager(viewerRole) && r.role === 'member' && isItSchoolEmail(r.email)
+          const showDemote = canPromoteMemberToManager(viewerRole) && r.role === 'manager' && r.id !== viewerId && (viewerRole !== 'manager' || isItSchoolEmail(r.email))
+          const showEdit = canEditUsers(viewerRole)
+          const showDelete = canShowDeleteForRow(r)
+          const showRoleChange = canChangeRoles(viewerRole) && r.id !== viewerId
+          const hasActions = showPromote || showDemote || showEdit || showDelete || showRoleChange
+
+          return (
+            <div key={r.id} className="rounded-lg border bg-card p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold">{r.name}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {[r.class_name, r.attendance_number != null ? String(r.attendance_number).padStart(2, '0') : null].filter(Boolean).join(' · ') || '—'}
+                  </p>
+                </div>
+                {hasActions && (
+                  <ActionMenu>
+                    {(close) => (
+                      <>
+                        {showPromote && (
+                          <button type="button" disabled={isDisabled}
+                            className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted disabled:opacity-50"
+                            onClick={() => { close(); setConfirmAction({ kind: 'promote', row: r }) }}
+                          >↑ manager に昇格</button>
+                        )}
+                        {showDemote && (
+                          <button type="button" disabled={isDisabled}
+                            className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted disabled:opacity-50"
+                            onClick={() => { close(); setConfirmAction({ kind: 'demote', row: r }) }}
+                          >↓ member に降格</button>
+                        )}
+                        {showRoleChange && (
+                          <div className="border-t px-4 py-2.5">
+                            <p className="mb-1.5 text-xs text-muted-foreground">ロール変更</p>
+                            <select
+                              className="w-full rounded-md border bg-background px-2 py-1 text-sm"
+                              disabled={isDisabled}
+                              value={confirmAction?.kind === 'role' && confirmAction.row.id === r.id ? confirmAction.prev : r.role}
+                              onChange={(e) => {
+                                const next = e.target.value as AppRole
+                                const prev = r.role as AppRole
+                                if (next === prev) return
+                                setConfirmAction({ kind: 'role', row: r, prev, next })
+                                close()
+                              }}
+                            >
+                              {selectableRoles(viewerRole, r.role as AppRole).map((opt) => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        {showEdit && (
+                          <button type="button" disabled={isDisabled}
+                            className="w-full border-t px-4 py-2.5 text-left text-sm hover:bg-muted disabled:opacity-50"
+                            onClick={() => { close(); openEdit(r) }}
+                          >編集</button>
+                        )}
+                        {showDelete && (
+                          <button type="button" disabled={isDisabled}
+                            className="w-full border-t px-4 py-2.5 text-left text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
+                            onClick={() => { close(); openDeleteFlow(r) }}
+                          >削除</button>
+                        )}
+                      </>
+                    )}
+                  </ActionMenu>
+                )}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <RoleBadge role={r.role} />
+                <StatusBadge status={r.status} />
+              </div>
+              <div className="mt-2.5 space-y-1.5 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-14 shrink-0 text-muted-foreground">Discord</span>
+                  {r.discord
+                    ? <span className="text-muted-foreground">{r.discord.username.replace(/#0$/, '')}{!r.discord.isServerJoined && <span className="ml-1.5 inline-flex rounded-full bg-amber-100 px-1.5 py-0.5 font-medium text-amber-700">未参加</span>}</span>
+                    : <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 font-medium text-zinc-400">未連携</span>
+                  }
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-14 shrink-0 text-muted-foreground">GitHub</span>
+                  {r.github
+                    ? <span className="text-muted-foreground">{r.github.username}{!r.github.isServerJoined && <span className="ml-1.5 inline-flex rounded-full bg-amber-100 px-1.5 py-0.5 font-medium text-amber-700">未参加</span>}</span>
+                    : <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 font-medium text-zinc-400">未連携</span>
+                  }
+                </div>
+              </div>
+            </div>
+          )
+        })}
+        {visibleFullRows.length === 0 && (
+          <p className="py-8 text-center text-sm text-muted-foreground">該当するメンバーがいません</p>
+        )}
+      </div>
+
+      {/* デスクトップ: テーブル (lg = 1024px 以上) */}
+      <div className="hidden overflow-x-auto rounded-lg border shadow-sm lg:block">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/50">
+              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">名前</th>
+              <th className="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground 2xl:table-cell">カナ</th>
+              <th className="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:table-cell">学籍番号</th>
+              <th className="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:table-cell">メール</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">クラス</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">出席番号</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">ロール</th>
+              <th className="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground 2xl:table-cell">卒業年</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">状態</th>
+              <th className="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground 2xl:table-cell">会則</th>
+              <th className="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground 2xl:table-cell">TechTrain</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Discord</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">GitHub</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">操作</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y">
             {visibleFullRows.map((r) => (
-              <tr key={r.id} className="border-t">
-                <td className="px-2 py-2">{r.name}</td>
-                <td className="px-2 py-2 text-xs">{r.name_kana}</td>
-                <td className="px-2 py-2 text-xs">{r.student_id ?? '—'}</td>
-                <td className="max-w-[140px] truncate px-2 py-2 text-xs">{r.email}</td>
-                <td className="px-2 py-2">{r.class_name ?? '—'}</td>
-                <td className="px-2 py-2">{r.attendance_number ?? '—'}</td>
-                <td className="px-2 py-2 text-xs">{r.role}</td>
-                <td className="px-2 py-2">{r.expected_graduation_year ?? '—'}</td>
-                <td className="px-2 py-2">{r.status}</td>
-                <td className="px-2 py-2 text-xs">
-                  {r.tos_agreed ? (
-                    <span className="rounded bg-green-100 px-2 py-0.5 text-green-800">
-                      同意済み
-                    </span>
-                  ) : (
-                    <span className="rounded bg-zinc-100 px-2 py-0.5 text-zinc-700">
-                      未同意
-                    </span>
-                  )}
+              <tr key={r.id} className="transition-colors hover:bg-muted/30">
+                <td className="px-3 py-2.5 font-medium">{r.name}</td>
+                <td className="hidden px-3 py-2.5 text-xs text-muted-foreground 2xl:table-cell">{r.name_kana}</td>
+                <td className="hidden px-3 py-2.5 text-xs text-muted-foreground xl:table-cell">{r.student_id ?? '—'}</td>
+                <td className="hidden max-w-[150px] truncate px-3 py-2.5 text-xs text-muted-foreground xl:table-cell">{r.email}</td>
+                <td className="px-3 py-2.5 font-medium text-muted-foreground">{r.class_name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-muted-foreground">
+                  {r.attendance_number != null ? String(r.attendance_number).padStart(2, '0') : '—'}
                 </td>
-                <td className="px-2 py-2 text-xs">
-                  {r.tech_train_agreed ? (
-                    <span className="rounded bg-green-100 px-2 py-0.5 text-green-800">
-                      同意済み
-                    </span>
-                  ) : (
-                    <span className="rounded bg-zinc-100 px-2 py-0.5 text-zinc-700">
-                      未同意
-                    </span>
-                  )}
-                </td>
-                <td className="space-y-1 px-2 py-2 align-top">
-                  {canPromoteMemberToManager(viewerRole) &&
-                    r.role === 'member' &&
-                    isItSchoolEmail(r.email) && (
-                      <button
-                        type="button"
-                        className="mr-1 rounded bg-muted px-2 py-0.5 text-xs hover:bg-muted/80 disabled:opacity-50"
-                        disabled={
-                          busy === r.id ||
-                          !!confirmAction ||
-                          !!annualFlow ||
-                          !!bulkDeleteFlow
-                        }
-                        onClick={() =>
-                          setConfirmAction({ kind: 'promote', row: r })
-                        }
-                      >
-                        manager に昇格
-                      </button>
-                    )}
-                  {canPromoteMemberToManager(viewerRole) &&
-                    r.role === 'manager' &&
-                    r.id !== viewerId &&
-                    (viewerRole !== 'manager' || isItSchoolEmail(r.email)) && (
-                      <button
-                        type="button"
-                        className="mr-1 rounded bg-muted px-2 py-0.5 text-xs hover:bg-muted/80 disabled:opacity-50"
-                        disabled={
-                          busy === r.id ||
-                          !!confirmAction ||
-                          !!annualFlow ||
-                          !!bulkDeleteFlow
-                        }
-                        onClick={() =>
-                          setConfirmAction({ kind: 'demote', row: r })
-                        }
-                      >
-                        member に降格
-                      </button>
-                    )}
-                  {canChangeRoles(viewerRole) && r.id !== viewerId && (
-                    <select
-                      className="max-w-[140px] rounded border px-1 py-0.5 text-xs"
-                      value={
-                        confirmAction?.kind === 'role' &&
-                        confirmAction.row.id === r.id
-                          ? confirmAction.prev
-                          : r.role
-                      }
-                      onChange={(e) => {
-                        const next = e.target.value as AppRole
-                        const prev = r.role as AppRole
-                        if (next === prev) return
-                        setConfirmAction({ kind: 'role', row: r, prev, next })
-                      }}
-                      disabled={
-                        busy === r.id ||
-                        !!confirmAction ||
-                        !!annualFlow ||
-                        !!bulkDeleteFlow
-                      }
-                    >
-                      {selectableRoles(viewerRole, r.role as AppRole).map(
-                        (opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
-                          </option>
-                        )
-                      )}
-                    </select>
-                  )}
-                  {canEditUsers(viewerRole) && (
-                    <button
-                      type="button"
-                      className="rounded border px-2 py-0.5 text-xs hover:bg-muted/50"
-                      disabled={
-                        busy === r.id ||
-                        !!confirmAction ||
-                        !!annualFlow ||
-                        !!bulkDeleteFlow
-                      }
-                      onClick={() => openEdit(r)}
-                    >
-                      編集
-                    </button>
-                  )}
-                  {canShowDeleteForRow(r) && (
-                    <button
-                      type="button"
-                      className="rounded border border-red-200 px-2 py-0.5 text-xs text-red-700 hover:bg-red-50"
-                      disabled={
-                        busy === r.id ||
-                        !!confirmAction ||
-                        !!annualFlow ||
-                        !!bulkDeleteFlow
-                      }
-                      onClick={() => openDeleteFlow(r)}
-                    >
-                      削除
-                    </button>
-                  )}
+                <td className="px-3 py-2.5"><RoleBadge role={r.role} /></td>
+                <td className="hidden px-3 py-2.5 text-muted-foreground 2xl:table-cell">{r.expected_graduation_year ?? '—'}</td>
+                <td className="px-3 py-2.5"><StatusBadge status={r.status} /></td>
+                <td className="hidden px-3 py-2.5 2xl:table-cell"><AgreeBadge agreed={r.tos_agreed} /></td>
+                <td className="hidden px-3 py-2.5 2xl:table-cell"><AgreeBadge agreed={r.tech_train_agreed} /></td>
+                <td className="px-3 py-2.5"><DiscordBadge info={r.discord} /></td>
+                <td className="px-3 py-2.5"><GitHubBadge info={r.github} /></td>
+                <td className="px-3 py-2.5">
+                  {(() => {
+                    const isDisabled = busy === r.id || !!confirmAction || !!annualFlow || !!bulkDeleteFlow
+                    const showPromote = canPromoteMemberToManager(viewerRole) && r.role === 'member' && isItSchoolEmail(r.email)
+                    const showDemote = canPromoteMemberToManager(viewerRole) && r.role === 'manager' && r.id !== viewerId && (viewerRole !== 'manager' || isItSchoolEmail(r.email))
+                    const showEdit = canEditUsers(viewerRole)
+                    const showDelete = canShowDeleteForRow(r)
+                    const showRoleChange = canChangeRoles(viewerRole) && r.id !== viewerId
+                    if (!showPromote && !showDemote && !showEdit && !showDelete && !showRoleChange) return null
+                    return (
+                      <ActionMenu>
+                        {(close) => (
+                          <>
+                            {showPromote && (
+                              <button type="button" disabled={isDisabled}
+                                className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted disabled:opacity-50"
+                                onClick={() => { close(); setConfirmAction({ kind: 'promote', row: r }) }}
+                              >↑ manager に昇格</button>
+                            )}
+                            {showDemote && (
+                              <button type="button" disabled={isDisabled}
+                                className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted disabled:opacity-50"
+                                onClick={() => { close(); setConfirmAction({ kind: 'demote', row: r }) }}
+                              >↓ member に降格</button>
+                            )}
+                            {showRoleChange && (
+                              <div className="border-t px-4 py-2.5">
+                                <p className="mb-1.5 text-xs text-muted-foreground">ロール変更</p>
+                                <select
+                                  className="w-full rounded-md border bg-background px-2 py-1 text-sm"
+                                  disabled={isDisabled}
+                                  value={confirmAction?.kind === 'role' && confirmAction.row.id === r.id ? confirmAction.prev : r.role}
+                                  onChange={(e) => {
+                                    const next = e.target.value as AppRole
+                                    const prev = r.role as AppRole
+                                    if (next === prev) return
+                                    setConfirmAction({ kind: 'role', row: r, prev, next })
+                                    close()
+                                  }}
+                                >
+                                  {selectableRoles(viewerRole, r.role as AppRole).map((opt) => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                            {showEdit && (
+                              <button type="button" disabled={isDisabled}
+                                className="w-full border-t px-4 py-2.5 text-left text-sm hover:bg-muted disabled:opacity-50"
+                                onClick={() => { close(); openEdit(r) }}
+                              >編集</button>
+                            )}
+                            {showDelete && (
+                              <button type="button" disabled={isDisabled}
+                                className="w-full border-t px-4 py-2.5 text-left text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
+                                onClick={() => { close(); openDeleteFlow(r) }}
+                              >削除</button>
+                            )}
+                          </>
+                        )}
+                      </ActionMenu>
+                    )
+                  })()}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {/* /デスクトップテーブル */}
 
       {confirmAction && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">

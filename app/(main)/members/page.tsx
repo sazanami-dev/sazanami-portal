@@ -21,17 +21,15 @@ export default async function MembersPage() {
 
   return (
     <div className="container mx-auto max-w-8xl space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold">メンバー一覧</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold tracking-tight">メンバー一覧</h1>
         {canManagePendingMembers(result.viewerRole) && (
-          <div className="mt-3">
-            <Link
-              href="/members/approvals"
-              className="inline-flex rounded border px-3 py-1.5 text-sm hover:bg-muted"
-            >
-              承認画面へ
-            </Link>
-          </div>
+          <Link
+            href="/members/approvals"
+            className="inline-flex items-center rounded-lg border bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-muted"
+          >
+            承認画面へ →
+          </Link>
         )}
       </div>
       <MembersClient
