@@ -22,6 +22,7 @@ const STUDENT_ID_SLUG_PATTERN = /^\/\d+\/[^/]+\/?$/
 function isPublicLinkPath(pathname: string): boolean {
   if (pathname.startsWith('/s/')) return true
   if (STUDENT_ID_SLUG_PATTERN.test(pathname)) return true
+  if (pathname.startsWith('/api/links/')) return true
   return false
 }
 
@@ -79,7 +80,8 @@ export async function updateSession(request: NextRequest) {
     !claims &&
     !pathname.startsWith('/signin') &&
     !pathname.startsWith('/auth') &&
-    !pathname.startsWith('/api/auth/oauth')
+    !pathname.startsWith('/api/auth/oauth') &&
+    !pathname.startsWith('/api/links')
   ) {
     const url = request.nextUrl.clone()
     url.pathname = '/signin'
