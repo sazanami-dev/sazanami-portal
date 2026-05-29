@@ -839,6 +839,10 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {[r.class_name, r.attendance_number != null ? String(r.attendance_number).padStart(2, '0') : null].filter(Boolean).join(' · ') || '—'}
                   </p>
+                  {r.student_id && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">学籍番号: {r.student_id}</p>
+                  )}
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{r.email}</p>
                 </div>
                 {hasActions && (
                   <ActionMenu>
