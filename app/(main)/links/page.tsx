@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { listLinks } from '@/lib/links/service'
-import { canCreateOfficialLink, OFFICIAL_LINK_NAMESPACE } from '@/lib/links/permissions'
+import { canCreateOfficialLink, canCreateCareerLink, OFFICIAL_LINK_NAMESPACE, CAREER_LINK_NAMESPACE } from '@/lib/links/permissions'
 import type { AppRole } from '@/lib/members/permissions'
 import LinksClient from './links-client'
 
@@ -24,6 +24,7 @@ export default async function LinksPage() {
   const role = userRow.role as AppRole
   const isFullAdmin = role === 'admin' || role === 'developer'
   const canOfficial = canCreateOfficialLink(role) // admin / developer / manager
+  const canCareer = canCreateCareerLink(role) // admin / developer / manager
   const links = await listLinks({
     createdBy: user.id,
     adminView: isFullAdmin,
@@ -52,6 +53,8 @@ export default async function LinksPage() {
       studentId={userRow.student_id ?? null}
       canCreateOfficial={canOfficial}
       officialNamespace={OFFICIAL_LINK_NAMESPACE}
+      canCreateCareer={canCareer}
+      careerNamespace={CAREER_LINK_NAMESPACE}
       isAdmin={canOfficial}
       usersMap={usersMap}
     />

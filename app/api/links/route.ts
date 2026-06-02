@@ -3,8 +3,10 @@ import { requireViewerRole } from '@/lib/members/route-helpers'
 import { createAdminClient } from '@/lib/supabase/server'
 import {
   canCreateOfficialLink,
+  canCreateCareerLink,
   canCreateUserLink,
   OFFICIAL_LINK_NAMESPACE,
+  CAREER_LINK_NAMESPACE,
 } from '@/lib/links/permissions'
 import { createLink, listLinks } from '@/lib/links/service'
 import { validateSlug, validateTargetUrl } from '@/lib/links/slug'
@@ -55,9 +57,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'missing_fields' }, { status: 400 })
   }
 
-  // 公式リンク作成権限チェック
+  // 公式・就活リンク作成権限チェック
   if (namespace === OFFICIAL_LINK_NAMESPACE) {
     if (!canCreateOfficialLink(ctx.role)) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
+  } else if (namespace === CAREER_LINK_NAMESPACE) {
+    if (!canCreateCareerLink(ctx.role)) {
       return NextResponse.json({ error: 'forbidden' }, { status: 403 })
     }
   } else {
