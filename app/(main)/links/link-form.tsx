@@ -6,8 +6,10 @@ import type { ShortLink } from '@/lib/links/service'
 type Props = {
   initial?: ShortLink
   canCreateOfficial: boolean
-  studentId: string | null
   officialNamespace: string
+  canCreateCareer: boolean
+  careerNamespace: string
+  studentId: string | null
   onSuccess: (link: ShortLink) => void
   onCancel: () => void
 }
@@ -30,14 +32,16 @@ function randomSlug(): string {
 export default function LinkForm({
   initial,
   canCreateOfficial,
-  studentId,
   officialNamespace,
+  canCreateCareer,
+  careerNamespace,
+  studentId,
   onSuccess,
   onCancel,
 }: Props) {
   const defaultNamespace =
     initial?.namespace ??
-    (studentId ?? (canCreateOfficial ? officialNamespace : ''))
+    (studentId ?? (canCreateOfficial ? officialNamespace : canCreateCareer ? careerNamespace : ''))
 
   const [namespace, setNamespace] = useState(defaultNamespace)
   const [slug, setSlug] = useState(initial?.slug ?? randomSlug())
@@ -94,6 +98,7 @@ export default function LinkForm({
   const namespaceOptions = [
     ...(studentId ? [{ value: studentId, label: `ユーザーリンク (/${studentId}/...)` }] : []),
     ...(canCreateOfficial ? [{ value: officialNamespace, label: '公式リンク (/s/...)' }] : []),
+    ...(canCreateCareer ? [{ value: careerNamespace, label: '就活リンク (/c/...)' }] : []),
   ]
 
   return (
@@ -170,7 +175,7 @@ export default function LinkForm({
         />
       </label>
 
-      {namespace === officialNamespace && (
+      {(namespace === officialNamespace || namespace === careerNamespace) && (
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"

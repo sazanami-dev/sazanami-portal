@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/server'
 import { generateSlug, validateSlug, validateTargetUrl } from './slug'
 import { hashPassword } from './password'
-import { OFFICIAL_LINK_NAMESPACE } from './permissions'
+import { OFFICIAL_LINK_NAMESPACE, CAREER_LINK_NAMESPACE } from './permissions'
 
 export type ShortLink = {
   id: string
@@ -130,7 +130,7 @@ export async function listLinks(options: {
     const { data, error } = await admin
       .from('short_links')
       .select('id, namespace, slug, title, target_url, created_by, password_hash, in_collection, created_at, updated_at')
-      .or(`namespace.eq.${OFFICIAL_LINK_NAMESPACE},created_by.eq.${options.createdBy}`)
+      .or(`namespace.eq.${OFFICIAL_LINK_NAMESPACE},namespace.eq.${CAREER_LINK_NAMESPACE},created_by.eq.${options.createdBy}`)
       .order('created_at', { ascending: false })
     if (error || !data) return []
     return data.map(rowToLink)
@@ -151,7 +151,7 @@ export async function listCollectionLinks(): Promise<ShortLink[]> {
   const { data, error } = await admin
     .from('short_links')
     .select('id, namespace, slug, title, target_url, created_by, password_hash, in_collection, created_at, updated_at')
-    .eq('namespace', OFFICIAL_LINK_NAMESPACE)
+    .in('namespace', [OFFICIAL_LINK_NAMESPACE, CAREER_LINK_NAMESPACE])
     .eq('in_collection', true)
     .order('created_at', { ascending: false })
 
@@ -222,4 +222,4 @@ function rowToLink(row: {
   }
 }
 
-export { OFFICIAL_LINK_NAMESPACE }
+export { OFFICIAL_LINK_NAMESPACE, CAREER_LINK_NAMESPACE }

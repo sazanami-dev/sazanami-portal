@@ -11,6 +11,8 @@ type Props = {
   studentId: string | null
   canCreateOfficial: boolean
   officialNamespace: string
+  canCreateCareer: boolean
+  careerNamespace: string
   isAdmin: boolean
   usersMap: Record<string, string>
 }
@@ -22,6 +24,8 @@ export default function LinksClient({
   studentId,
   canCreateOfficial,
   officialNamespace,
+  canCreateCareer,
+  careerNamespace,
   isAdmin,
   usersMap,
 }: Props) {
@@ -44,6 +48,7 @@ export default function LinksClient({
 
   function buildLinkUrl(link: ShortLink): string {
     if (link.namespace === officialNamespace) return `/s/${link.slug}`
+    if (link.namespace === careerNamespace) return `/c/${link.slug}`
     return `/${link.namespace}/${link.slug}`
   }
 
@@ -64,7 +69,7 @@ export default function LinksClient({
   }
 
   const isEditing = !!editTarget
-  const canCreate = canCreateOfficial || !!studentId
+  const canCreate = canCreateOfficial || canCreateCareer || !!studentId
 
   const tabs: { userId: string; name: string }[] = []
   if (isAdmin) {
@@ -179,7 +184,7 @@ export default function LinksClient({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5 mb-1">
                     <span className="rounded bg-muted px-2 py-0.5 text-xs font-mono text-muted-foreground">
-                      {link.namespace === officialNamespace ? '公式' : link.namespace}
+                      {link.namespace === officialNamespace ? '公式' : link.namespace === careerNamespace ? '就活' : link.namespace}
                     </span>
                     {link.hasPassword && (
                       <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
@@ -230,8 +235,10 @@ export default function LinksClient({
         <Modal title="リンクを作成" onClose={() => setShowCreateModal(false)}>
           <LinkForm
             canCreateOfficial={canCreateOfficial}
-            studentId={studentId}
             officialNamespace={officialNamespace}
+            canCreateCareer={canCreateCareer}
+            careerNamespace={careerNamespace}
+            studentId={studentId}
             onSuccess={handleCreated}
             onCancel={() => setShowCreateModal(false)}
           />
@@ -243,8 +250,10 @@ export default function LinksClient({
           <LinkForm
             initial={editTarget}
             canCreateOfficial={canCreateOfficial}
-            studentId={studentId}
             officialNamespace={officialNamespace}
+            canCreateCareer={canCreateCareer}
+            careerNamespace={careerNamespace}
+            studentId={studentId}
             onSuccess={handleUpdated}
             onCancel={() => setEditTarget(null)}
           />

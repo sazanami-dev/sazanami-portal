@@ -1,8 +1,13 @@
 import type { AppRole } from '@/lib/members/permissions'
 
 export const OFFICIAL_LINK_NAMESPACE = '_s'
+export const CAREER_LINK_NAMESPACE = '_c'
 
 export function canCreateOfficialLink(role: AppRole): boolean {
+  return role === 'admin' || role === 'developer' || role === 'manager'
+}
+
+export function canCreateCareerLink(role: AppRole): boolean {
   return role === 'admin' || role === 'developer' || role === 'manager'
 }
 
@@ -16,7 +21,7 @@ export function canManageLink(
   link: { createdBy: string | null; namespace: string }
 ): boolean {
   if (actorRole === 'admin' || actorRole === 'developer') return true
-  if (actorRole === 'manager' && link.namespace === OFFICIAL_LINK_NAMESPACE) return true
+  if (actorRole === 'manager' && (link.namespace === OFFICIAL_LINK_NAMESPACE || link.namespace === CAREER_LINK_NAMESPACE)) return true
   return link.createdBy === actorId
 }
 
