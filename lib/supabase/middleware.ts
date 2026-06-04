@@ -21,6 +21,7 @@ const STUDENT_ID_SLUG_PATTERN = /^\/\d+\/[^/]+\/?$/
 
 function isPublicLinkPath(pathname: string): boolean {
   if (pathname.startsWith('/s/')) return true
+  if (pathname.startsWith('/c/')) return true
   if (STUDENT_ID_SLUG_PATTERN.test(pathname)) return true
   if (pathname.startsWith('/api/links/')) return true
   return false
