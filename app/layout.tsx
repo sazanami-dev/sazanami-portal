@@ -18,6 +18,12 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.ico",
   },
+  // メンバー専用システムのため検索エンジンにインデックスさせない
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: { index: false, follow: false },
+  },
 };
 
 export default function RootLayout({

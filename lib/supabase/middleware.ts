@@ -20,6 +20,8 @@ function isAllowedPath(pathname: string) {
 const STUDENT_ID_SLUG_PATTERN = /^\/\d+\/[^/]+\/?$/
 
 function isPublicLinkPath(pathname: string): boolean {
+  // クローラー向けメタファイルは認証なしで配信する
+  if (pathname === '/robots.txt' || pathname === '/sitemap.xml') return true
   if (pathname.startsWith('/s/')) return true
   if (pathname.startsWith('/c/')) return true
   if (STUDENT_ID_SLUG_PATTERN.test(pathname)) return true
