@@ -19,6 +19,17 @@ function formatDate(iso: string): string {
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
+/** http(s) のみ許可する（javascript: 等のスキームによる XSS を防ぐ多層防御） */
+function safeHttpUrl(url: string | null): string | null {
+  if (!url) return null
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? url : null
+  } catch {
+    return null
+  }
+}
+
 const STATUS_STYLE: Record<string, string> = {
   completed: 'bg-green-100 text-green-800',
   pending: 'bg-yellow-100 text-yellow-800',
@@ -62,9 +73,9 @@ export function LogsClient({ logs }: Props) {
                 </span>
               </td>
               <td className="px-3 py-2">
-                {log.webViewLink ? (
+                {safeHttpUrl(log.webViewLink) ? (
                   <a
-                    href={log.webViewLink}
+                    href={safeHttpUrl(log.webViewLink)!}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 underline"

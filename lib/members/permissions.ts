@@ -47,6 +47,16 @@ export function canBulkGrantDrive(role: AppRole): boolean {
   return role === 'admin'
 }
 
+/** アップロードテンプレートの設定・ログ閲覧: manager 以上 */
+export function canManageUploadTemplates(role: AppRole): boolean {
+  return role === 'manager' || role === 'admin' || role === 'developer'
+}
+
+/** ポータルからのファイルアップロード: guest 以外 */
+export function canUploadFiles(role: AppRole): boolean {
+  return role !== 'guest'
+}
+
 /** developer のみ admin ロールを付与可能（admin は developer へは昇格可とする） */
 export function canAssignRole(actor: AppRole, targetRole: AppRole): boolean {
   if (!canChangeRoles(actor)) return false

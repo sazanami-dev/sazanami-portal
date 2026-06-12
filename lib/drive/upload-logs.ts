@@ -53,27 +53,51 @@ export async function createUploadLog(input: CreateUploadLogInput): Promise<stri
   return data.id
 }
 
+/** Google Drive のファイルIDは英数字・ハイフン・アンダースコアのみ。書式外は拒否する。 */
+function isValidDriveFileId(id: string): boolean {
+  return /^[A-Za-z0-9_-]{1,256}$/.test(id)
+}
+
+/**
+ * pending ログを完了に確定する。
+ * セキュリティ: 呼び出しユーザー本人かつ pending の行のみ対象（オーナーシップ検証）。
+ * web_view_link はクライアント入力を信用せず driveFileId からサーバ側で組み立てる。
+ */
 export async function completeUploadLog(
   id: string,
-  result: { driveFileId?: string | null; webViewLink?: string | null; sizeBytes?: number | null }
+  userId: string,
+  result: { driveFileId?: string | null; sizeBytes?: number | null }
 ): Promise<boolean> {
   const admin = createAdminClient()
-  const { error } = await admin
+  const driveFileId =
+    result.driveFileId && isValidDriveFileId(result.driveFileId) ? result.driveFileId : null
+  const webViewLink = driveFileId
+    ? `https://drive.google.com/file/d/${driveFileId}/view`
+    : null
+
+  const { data, error } = await admin
     .from('upload_logs')
     .update({
       status: 'completed',
-      drive_file_id: result.driveFileId ?? null,
-      web_view_link: result.webViewLink ?? null,
+      drive_file_id: driveFileId,
+      web_view_link: webViewLink,
       ...(result.sizeBytes != null ? { size_bytes: result.sizeBytes } : {}),
       completed_at: new Date().toISOString(),
     })
     .eq('id', id)
-  return !error
+    .eq('user_id', userId)
+    .eq('status', 'pending')
+    .select('id')
+  return !error && !!data && data.length > 0
 }
 
-export async function failUploadLog(id: string, message: string): Promise<boolean> {
+export async function failUploadLog(
+  id: string,
+  userId: string,
+  message: string
+): Promise<boolean> {
   const admin = createAdminClient()
-  const { error } = await admin
+  const { data, error } = await admin
     .from('upload_logs')
     .update({
       status: 'failed',
@@ -81,7 +105,10 @@ export async function failUploadLog(id: string, message: string): Promise<boolea
       completed_at: new Date().toISOString(),
     })
     .eq('id', id)
-  return !error
+    .eq('user_id', userId)
+    .eq('status', 'pending')
+    .select('id')
+  return !error && !!data && data.length > 0
 }
 
 type ListLogsOptions = {

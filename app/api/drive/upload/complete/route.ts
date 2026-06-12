@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   if (ctx.error === 'unauthenticated') {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
   }
-  if (!ctx.role || !canUploadFiles(ctx.role)) {
+  if (!ctx.role || !ctx.userId || !canUploadFiles(ctx.role)) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
 
@@ -18,11 +18,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 })
   }
 
-  const { logId, status, driveFileId, webViewLink, sizeBytes, error } = body as {
+  // webViewLink はクライアントから受け取らず、driveFileId からサーバ側で生成する（XSS対策）
+  const { logId, status, driveFileId, sizeBytes, error } = body as {
     logId?: string
     status?: 'completed' | 'failed'
     driveFileId?: string
-    webViewLink?: string
     sizeBytes?: number
     error?: string
   }
@@ -31,14 +31,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 })
   }
 
+  // 本人かつ pending のログのみ確定できる（オーナーシップ検証）
   if (status === 'completed') {
-    await completeUploadLog(logId, {
+    await completeUploadLog(logId, ctx.userId, {
       driveFileId: driveFileId ?? null,
-      webViewLink: webViewLink ?? null,
       sizeBytes: typeof sizeBytes === 'number' ? sizeBytes : null,
     })
   } else {
-    await failUploadLog(logId, error || 'upload_failed')
+    await failUploadLog(logId, ctx.userId, error || 'upload_failed')
   }
 
   return NextResponse.json({ ok: true })

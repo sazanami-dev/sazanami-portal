@@ -214,6 +214,7 @@ export function UploadClient({ templates }: Props) {
       const link = driveFileId ? `https://drive.google.com/file/d/${driveFileId}/view` : null
 
       if (logId) {
+        // webViewLink はサーバ側で driveFileId から生成するため送信しない
         await fetch('/api/drive/upload/complete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -221,7 +222,6 @@ export function UploadClient({ templates }: Props) {
             logId,
             status: 'completed',
             driveFileId,
-            webViewLink: link,
             sizeBytes: file.size,
           }),
         }).catch(() => {})
