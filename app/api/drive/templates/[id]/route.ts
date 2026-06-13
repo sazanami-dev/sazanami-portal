@@ -20,13 +20,14 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 })
   }
 
-  const { name, description, baseFolderId, segments, filenameFormat, isActive } = body as {
+  const { name, description, baseFolderId, segments, filenameFormat, isActive, managerOnly } = body as {
     name?: string
     description?: string | null
     baseFolderId?: string
     segments?: unknown
     filenameFormat?: string | null
     isActive?: boolean
+    managerOnly?: boolean
   }
 
   const patch: Parameters<typeof updateTemplate>[1] = {}
@@ -46,6 +47,7 @@ export async function PATCH(request: Request, { params }: Params) {
   }
   if (filenameFormat !== undefined) patch.filenameFormat = filenameFormat?.trim() || null
   if (isActive !== undefined) patch.isActive = isActive
+  if (managerOnly !== undefined) patch.managerOnly = managerOnly
 
   const ok = await updateTemplate(id, patch)
   if (!ok) return NextResponse.json({ error: 'update_failed' }, { status: 500 })

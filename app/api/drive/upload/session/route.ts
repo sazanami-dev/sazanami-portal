@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireViewerRole } from '@/lib/members/route-helpers'
-import { canUploadFiles } from '@/lib/members/permissions'
+import { canUploadFiles, canManageUploadTemplates } from '@/lib/members/permissions'
 import { createAdminClient } from '@/lib/supabase/server'
 import { getTemplateById } from '@/lib/drive/templates'
 import { createUploadLog } from '@/lib/drive/upload-logs'
@@ -30,8 +30,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 })
   }
 
-  const { templateId, month, fileName, mimeType, fileSize } = body as {
+  const { templateId, value, month, fileName, mimeType, fileSize } = body as {
     templateId?: string
+    value?: string
     month?: string
     fileName?: string
     mimeType?: string
@@ -48,6 +49,10 @@ export async function POST(request: Request) {
   const template = await getTemplateById(templateId)
   if (!template || !template.isActive) {
     return NextResponse.json({ error: 'template_not_found' }, { status: 404 })
+  }
+  // manager 専用テンプレートは manager 以上のみアップロード可能
+  if (template.managerOnly && !canManageUploadTemplates(ctx.role)) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
 
   // アップロード者情報（ファイル名トークン展開に使用）
@@ -69,7 +74,7 @@ export async function POST(request: Request) {
     expectedGraduationYear: userRow?.expected_graduation_year,
   }
 
-  const params = { month: month || undefined }
+  const params = { value: value || month || undefined }
   const finalFileName = resolveFileName(template.filenameFormat, {
     originalName: fileName,
     params,

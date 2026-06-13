@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { UploadCloud } from 'lucide-react'
 
+type DynamicGranularity = 'year' | 'month' | 'date' | 'datetime' | null
+
 type TemplateOption = {
   id: string
   name: string
   description: string | null
-  hasMonth: boolean
+  granularity: DynamicGranularity
 }
 
 type Props = {
@@ -38,9 +40,38 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 const CHUNK_SIZE = 8 * 1024 * 1024 // 8MB（256KB の倍数）
 
-function currentMonth(): string {
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/** 粒度に応じた入力初期値（現在日時ベース）を返す */
+function currentValueFor(granularity: DynamicGranularity): string {
   const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const y = now.getFullYear()
+  const mo = pad(now.getMonth() + 1)
+  const d = pad(now.getDate())
+  const h = pad(now.getHours())
+  const mi = pad(now.getMinutes())
+  switch (granularity) {
+    case 'year':
+      return `${y}`
+    case 'month':
+      return `${y}-${mo}`
+    case 'date':
+      return `${y}-${mo}-${d}`
+    case 'datetime':
+      return `${y}-${mo}-${d}T${h}:${mi}`
+    default:
+      return ''
+  }
+}
+
+const GRANULARITY_INPUT: Record<
+  'year' | 'month' | 'date' | 'datetime',
+  { type: string; label: string }
+> = {
+  year: { type: 'number', label: '対象年' },
+  month: { type: 'month', label: '対象月' },
+  date: { type: 'date', label: '対象日' },
+  datetime: { type: 'datetime-local', label: '対象日時' },
 }
 
 function formatBytes(n: number): string {
@@ -115,7 +146,7 @@ const STATUS_STYLE: Record<FileStatus, string> = {
 
 export function UploadClient({ templates }: Props) {
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? '')
-  const [month, setMonth] = useState(currentMonth())
+  const [dateValue, setDateValue] = useState('')
   const [items, setItems] = useState<FileItem[]>([])
   const [previewPath, setPreviewPath] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -123,15 +154,21 @@ export function UploadClient({ templates }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const selected = templates.find((t) => t.id === templateId)
+  const granularity = selected?.granularity ?? null
 
-  // 選択テンプレ/月が変わったらアップロード先パスのプレビューを取得
+  // テンプレートの粒度が変わったら入力初期値（現在日時）をセット
+  useEffect(() => {
+    setDateValue(currentValueFor(granularity))
+  }, [granularity])
+
+  // 選択テンプレ/日時が変わったらアップロード先パスのプレビューを取得
   useEffect(() => {
     if (!templateId) {
       setPreviewPath(null)
       return
     }
     let cancelled = false
-    const q = selected?.hasMonth ? `?month=${month}` : ''
+    const q = granularity && dateValue ? `?value=${encodeURIComponent(dateValue)}` : ''
     fetch(`/api/drive/templates/${templateId}/resolve${q}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
@@ -143,7 +180,7 @@ export function UploadClient({ templates }: Props) {
     return () => {
       cancelled = true
     }
-  }, [templateId, month, selected?.hasMonth])
+  }, [templateId, dateValue, granularity])
 
   function updateItem(uid: string, patch: Partial<FileItem>) {
     setItems((prev) => prev.map((it) => (it.uid === uid ? { ...it, ...patch } : it)))
@@ -183,7 +220,7 @@ export function UploadClient({ templates }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           templateId,
-          month: selected?.hasMonth ? month : undefined,
+          value: granularity ? dateValue : undefined,
           fileName: file.name,
           mimeType: file.type || 'application/octet-stream',
           fileSize: file.size,
@@ -287,13 +324,15 @@ export function UploadClient({ templates }: Props) {
         )}
       </label>
 
-      {selected?.hasMonth && (
+      {granularity && (
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">対象月</span>
+          <span className="font-medium">{GRANULARITY_INPUT[granularity].label}</span>
           <input
-            type="month"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
+            type={GRANULARITY_INPUT[granularity].type}
+            value={dateValue}
+            min={granularity === 'year' ? 2000 : undefined}
+            max={granularity === 'year' ? 2100 : undefined}
+            onChange={(e) => setDateValue(e.target.value)}
             className="rounded border px-3 py-2"
             disabled={uploading}
           />

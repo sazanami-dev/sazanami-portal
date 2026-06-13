@@ -2,7 +2,14 @@
 
 import { useState } from 'react'
 import type { UploadTemplate } from '@/lib/drive/templates'
-import type { TemplateSegment } from '@/lib/drive/client'
+import type { TemplateSegment, DynamicToken } from '@/lib/drive/segments'
+import { DEFAULT_DYNAMIC_FORMAT } from '@/lib/drive/segments'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 type Props = {
   initialTemplates: UploadTemplate[]
@@ -17,10 +24,11 @@ type FormState = {
   segments: TemplateSegment[]
   filenameFormat: string
   isActive: boolean
+  managerOnly: boolean
 }
 
 const FILENAME_TOKENS = [
-  '{original}', '{ext}', '{month}', '{date}', '{datetime}',
+  '{original}', '{ext}', '{year}', '{month}', '{date}', '{time}', '{datetime}',
   '{name}', '{name_kana}', '{student_id}', '{class_name}',
   '{attendance_number}', '{email}', '{role}', '{graduation_year}',
 ]
@@ -34,12 +42,13 @@ function emptyForm(baseFolderId: string): FormState {
     segments: [],
     filenameFormat: '',
     isActive: true,
+    managerOnly: false,
   }
 }
 
 function segmentLabel(seg: TemplateSegment): string {
   if (seg.type === 'static') return `固定: ${seg.value}`
-  return `月フォルダ: ${seg.format ?? 'YYYY年MM月'}`
+  return `可変フォルダ: ${seg.format ?? DEFAULT_DYNAMIC_FORMAT[seg.token]}`
 }
 
 export function TemplatesClient({ initialTemplates, defaultBaseFolderId }: Props) {
@@ -63,6 +72,7 @@ export function TemplatesClient({ initialTemplates, defaultBaseFolderId }: Props
       segments: t.segments,
       filenameFormat: t.filenameFormat ?? '',
       isActive: t.isActive,
+      managerOnly: t.managerOnly,
     })
   }
 
@@ -93,13 +103,13 @@ export function TemplatesClient({ initialTemplates, defaultBaseFolderId }: Props
     setForm({ ...form, segments: [...form.segments, { type: 'static', value: '' }] })
   }
 
-  function addMonth() {
+  function addDynamic(token: DynamicToken) {
     if (!form) return
     setForm({
       ...form,
       segments: [
         ...form.segments,
-        { type: 'dynamic', token: 'month', format: 'YYYY年MM月', default: 'current' },
+        { type: 'dynamic', token, format: DEFAULT_DYNAMIC_FORMAT[token], default: 'current' },
       ],
     })
   }
@@ -116,6 +126,7 @@ export function TemplatesClient({ initialTemplates, defaultBaseFolderId }: Props
         segments: form.segments,
         filenameFormat: form.filenameFormat || null,
         isActive: form.isActive,
+        managerOnly: form.managerOnly,
       }
       const url = form.id ? `/api/drive/templates/${form.id}` : '/api/drive/templates'
       const method = form.id ? 'PATCH' : 'POST'
@@ -168,10 +179,14 @@ export function TemplatesClient({ initialTemplates, defaultBaseFolderId }: Props
         </button>
       )}
 
-      {form && (
-        <div className="space-y-4 rounded-xl border bg-background p-6 shadow-sm">
-          <h2 className="font-semibold">{form.id ? 'テンプレート編集' : '新規テンプレート'}</h2>
+      <Dialog open={!!form} onOpenChange={(o) => { if (!o && !saving) setForm(null) }}>
+        {form && (
+          <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{form.id ? 'テンプレート編集' : '新規テンプレート'}</DialogTitle>
+            </DialogHeader>
 
+            <div className="space-y-4">
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium">名前</span>
             <input
@@ -226,7 +241,7 @@ export function TemplatesClient({ initialTemplates, defaultBaseFolderId }: Props
                     type="text"
                     value={seg.format ?? ''}
                     onChange={(e) => updateSegment(idx, { format: e.target.value })}
-                    placeholder="月フォーマット（例: YYYY年MM月）"
+                    placeholder={`フォーマット（例: ${DEFAULT_DYNAMIC_FORMAT[seg.token]}）`}
                     className="flex-1 rounded border px-2 py-1 font-mono"
                   />
                 )}
@@ -238,14 +253,17 @@ export function TemplatesClient({ initialTemplates, defaultBaseFolderId }: Props
                 <button type="button" onClick={() => removeSegment(idx)} className="px-1 text-xs text-red-600 hover:bg-muted rounded">×</button>
               </div>
             ))}
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button type="button" onClick={addStatic} className="rounded border px-3 py-1.5 text-xs hover:bg-muted">
                 + 固定フォルダ
               </button>
-              <button type="button" onClick={addMonth} className="rounded border px-3 py-1.5 text-xs hover:bg-muted">
-                + 月フォルダ
+              <button type="button" onClick={() => addDynamic('month')} className="rounded border px-3 py-1.5 text-xs hover:bg-muted">
+                + 可変フォルダ
               </button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              フォーマットで使えるトークン: YYYY（年）/ MM（月）/ DD（日）/ HH（時）
+            </p>
           </div>
 
           <label className="flex flex-col gap-1 text-sm">
@@ -271,6 +289,15 @@ export function TemplatesClient({ initialTemplates, defaultBaseFolderId }: Props
             <span>有効（アップロード画面に表示）</span>
           </label>
 
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={form.managerOnly}
+              onChange={(e) => setForm({ ...form, managerOnly: e.target.checked })}
+            />
+            <span>運営専用</span>
+          </label>
+
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <div className="flex gap-2">
@@ -290,11 +317,13 @@ export function TemplatesClient({ initialTemplates, defaultBaseFolderId }: Props
               キャンセル
             </button>
           </div>
-        </div>
-      )}
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
 
       <div className="space-y-3">
-        {templates.length === 0 && !form && (
+        {templates.length === 0 && (
           <p className="text-sm text-muted-foreground">テンプレートがありません。</p>
         )}
         {templates.map((t) => (
@@ -304,6 +333,9 @@ export function TemplatesClient({ initialTemplates, defaultBaseFolderId }: Props
                 <span className="font-medium">{t.name}</span>
                 {!t.isActive && (
                   <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">無効</span>
+                )}
+                {t.managerOnly && (
+                  <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">運営専用</span>
                 )}
               </div>
               {t.description && <p className="text-xs text-muted-foreground">{t.description}</p>}

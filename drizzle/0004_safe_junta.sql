@@ -24,6 +24,7 @@ CREATE TABLE "upload_templates" (
 	"segments" jsonb NOT NULL,
 	"filename_format" text,
 	"is_active" boolean DEFAULT true NOT NULL,
+	"manager_only" boolean DEFAULT false NOT NULL,
 	"created_by" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL

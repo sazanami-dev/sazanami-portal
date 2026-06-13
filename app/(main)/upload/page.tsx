@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getViewerRole } from '@/lib/members/service'
 import { canManageUploadTemplates, canUploadFiles } from '@/lib/members/permissions'
 import { listTemplates } from '@/lib/drive/templates'
+import { finestDynamicGranularity } from '@/lib/drive/segments'
 import { UploadClient } from './upload-client'
 
 export default async function UploadPage() {
@@ -17,7 +18,8 @@ export default async function UploadPage() {
   if (!role || !canUploadFiles(role)) redirect('/')
 
   const canManage = canManageUploadTemplates(role)
-  const templates = await listTemplates({ activeOnly: true })
+  // 一般メンバーには manager 専用テンプレートを出さない
+  const templates = await listTemplates({ activeOnly: true, includeManagerOnly: canManage })
 
   return (
     <div className="container mx-auto max-w-3xl space-y-6 p-6">
@@ -46,7 +48,7 @@ export default async function UploadPage() {
           id: t.id,
           name: t.name,
           description: t.description,
-          hasMonth: t.segments.some((s) => s.type === 'dynamic' && s.token === 'month'),
+          granularity: finestDynamicGranularity(t.segments),
         }))}
       />
     </div>

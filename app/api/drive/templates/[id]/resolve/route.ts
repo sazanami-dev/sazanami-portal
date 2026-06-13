@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireViewerRole } from '@/lib/members/route-helpers'
-import { canUploadFiles } from '@/lib/members/permissions'
+import { canUploadFiles, canManageUploadTemplates } from '@/lib/members/permissions'
 import { getTemplateById } from '@/lib/drive/templates'
 import { resolveSegmentNames } from '@/lib/drive/client'
 
@@ -21,11 +21,18 @@ export async function GET(request: Request, { params }: Params) {
   if (!template) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
   }
+  // manager 専用テンプレートは manager 以上のみプレビュー可能
+  if (template.managerOnly && !canManageUploadTemplates(ctx.role)) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+  }
 
-  const month = new URL(request.url).searchParams.get('month') ?? undefined
+  const value =
+    new URL(request.url).searchParams.get('value') ??
+    new URL(request.url).searchParams.get('month') ??
+    undefined
   let names: string[]
   try {
-    names = resolveSegmentNames(template.segments, { month: month || undefined })
+    names = resolveSegmentNames(template.segments, { value: value || undefined })
   } catch {
     return NextResponse.json({ error: 'invalid_template' }, { status: 400 })
   }

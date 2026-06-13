@@ -214,7 +214,7 @@ export const shortLinks = pgTable(
 // ポータルからの Drive アップロード用テンプレート。
 // segments はベースフォルダ直下からの順序付きパスセグメント列:
 //   [{ type: 'static', value: '定例' },
-//    { type: 'dynamic', token: 'month', format: 'YYYY年MM月', default: 'current' }]
+//    { type: 'dynamic', token: 'month', format: 'YYYYMM', default: 'current' }]
 // filename_format はファイル名規定（null = 元のファイル名のまま）。
 
 export const uploadTemplates = pgTable('upload_templates', {
@@ -228,6 +228,8 @@ export const uploadTemplates = pgTable('upload_templates', {
   filenameFormat: text('filename_format'),
 
   isActive: boolean('is_active').notNull().default(true),
+  // true の場合、manager 以上のみ閲覧・アップロード可能
+  managerOnly: boolean('manager_only').notNull().default(false),
 
   createdBy: uuid('created_by').references(() => users.id, {
     onDelete: 'set null',

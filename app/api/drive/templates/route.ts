@@ -12,9 +12,12 @@ export async function GET() {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
 
-  // 管理権限がある人は全件、それ以外（一般アップロード画面）はアクティブのみ
+  // 管理権限がある人は全件、それ以外（一般アップロード画面）はアクティブかつ manager専用以外のみ
   const canManage = canManageUploadTemplates(ctx.role)
-  const templates = await listTemplates({ activeOnly: !canManage })
+  const templates = await listTemplates({
+    activeOnly: !canManage,
+    includeManagerOnly: canManage,
+  })
   return NextResponse.json({ templates, canManage })
 }
 
@@ -32,13 +35,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 })
   }
 
-  const { name, description, baseFolderId, segments, filenameFormat, isActive } = body as {
+  const { name, description, baseFolderId, segments, filenameFormat, isActive, managerOnly } = body as {
     name?: string
     description?: string | null
     baseFolderId?: string
     segments?: unknown
     filenameFormat?: string | null
     isActive?: boolean
+    managerOnly?: boolean
   }
 
   if (!name?.trim() || !baseFolderId?.trim()) {
@@ -57,6 +61,7 @@ export async function POST(request: Request) {
     segments: validSegments,
     filenameFormat: filenameFormat?.trim() || null,
     isActive: isActive ?? true,
+    managerOnly: managerOnly ?? false,
     createdBy: ctx.userId,
   })
 

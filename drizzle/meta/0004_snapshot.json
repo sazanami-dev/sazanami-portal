@@ -1,5 +1,5 @@
 {
-  "id": "05ffe8ba-bc1c-46b1-a19d-a1d126a908fc",
+  "id": "19cb7b30-11cc-4c35-9174-834165d8ff2c",
   "prevId": "55160890-6833-4e14-be9c-198da96f4012",
   "version": "7",
   "dialect": "postgresql",
@@ -412,6 +412,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": true
+        },
+        "manager_only": {
+          "name": "manager_only",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "created_by": {
           "name": "created_by",
