@@ -6,6 +6,7 @@ import {
   text,
   varchar,
   integer,
+  bigint,
   boolean,
   timestamp,
   jsonb,
@@ -205,3 +206,78 @@ export const shortLinks = pgTable(
     ),
   })
 )
+
+// ==============================
+// upload_templates
+// ==============================
+//
+// ポータルからの Drive アップロード用テンプレート。
+// segments はベースフォルダ直下からの順序付きパスセグメント列:
+//   [{ type: 'static', value: '定例' },
+//    { type: 'dynamic', token: 'month', format: 'YYYYMM', default: 'current' }]
+// filename_format はファイル名規定（null = 元のファイル名のまま）。
+
+export const uploadTemplates = pgTable('upload_templates', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+
+  baseFolderId: varchar('base_folder_id', { length: 255 }).notNull(),
+  segments: jsonb('segments').notNull(),
+  filenameFormat: text('filename_format'),
+
+  isActive: boolean('is_active').notNull().default(true),
+  // true の場合、manager 以上のみ閲覧・アップロード可能
+  managerOnly: boolean('manager_only').notNull().default(false),
+
+  createdBy: uuid('created_by').references(() => users.id, {
+    onDelete: 'set null',
+  }),
+
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
+
+// ==============================
+// upload_logs
+// ==============================
+//
+// アップロード履歴の収集・監査用。
+// 本体はブラウザ→Google直送のため、セッション発行時に pending で記録し、
+// 完了通知で completed / failed に確定する。
+
+export const uploadLogs = pgTable('upload_logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  templateId: uuid('template_id').references(() => uploadTemplates.id, {
+    onDelete: 'set null',
+  }),
+  userId: uuid('user_id').references(() => users.id, {
+    onDelete: 'set null',
+  }),
+
+  fileName: varchar('file_name', { length: 512 }).notNull(),
+  originalName: varchar('original_name', { length: 512 }),
+
+  driveFileId: varchar('drive_file_id', { length: 255 }),
+  webViewLink: text('web_view_link'),
+
+  folderId: varchar('folder_id', { length: 255 }),
+  folderPath: text('folder_path'),
+
+  mimeType: varchar('mime_type', { length: 255 }),
+  sizeBytes: bigint('size_bytes', { mode: 'number' }),
+
+  status: varchar('status', { length: 20 }).notNull().default('pending'),
+  error: text('error'),
+
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+})
