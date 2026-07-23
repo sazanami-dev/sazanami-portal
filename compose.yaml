@@ -1,0 +1,18 @@
+# サーバー（セルフホスト）上でGHCRのイメージをpullして起動するためのcompose定義。
+# デプロイディレクトリ（例: /opt/sazanami-portal/）に本ファイルと実行時シークレットの
+# .env を配置し、GitHub Actionsのdeployステップから `docker compose pull && up -d` する。
+services:
+  app:
+    image: ghcr.io/sazanami-dev/sazanami-portal:latest
+    container_name: sazanami-portal
+    restart: unless-stopped
+    # 実行時シークレット（Discord / GitHub App / Google / Supabase service role /
+    # DATABASE_URL 等）はサーバー上の .env から注入する（git管理外）。
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    ports:
+      # 既存のリバースプロキシ構成に合わせて調整すること。
+      - "3000:3000"
