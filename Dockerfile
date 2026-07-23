@@ -6,6 +6,13 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
+# ---------- lint: ESLint 実行（CI のゲート用。ランナーに Node 不要） ----------
+FROM node:24-alpine AS lint
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run lint
+
 # ---------- builder: Next.js ビルド（standalone 出力） ----------
 FROM node:24-alpine AS builder
 WORKDIR /app
