@@ -1,0 +1,64 @@
+name: Build and Deploy
+
+# main への push（PR マージ）をトリガーに自動ビルド・デプロイする
+on:
+  push:
+    branches: [main]
+  # 手動実行も可能にする（初回検証・再デプロイ用）
+  workflow_dispatch:
+
+# デプロイの多重実行を防ぐ（進行中はキャンセルせず順番待ち）
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/sazanami-dev/sazanami-portal
+  # サーバー上のデプロイディレクトリ（compose.yaml と実行時 .env を配置済みの場所）
+  DEPLOY_DIR: /opt/sazanami-portal
+
+jobs:
+  deploy:
+    # Tailscale/プライベート網内に配置したセルフホストランナーで実行
+    # （DB・自前 Supabase・GHCR に到達可能）
+    runs-on: self-hosted
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint
+        run: |
+          npm ci
+          npm run lint
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push app image
+        run: |
+          docker build --target runner \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL="${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" \
+            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" \
+            -t "${IMAGE}:latest" \
+            -t "${IMAGE}:${{ github.sha }}" \
+            .
+          docker push "${IMAGE}:latest"
+          docker push "${IMAGE}:${{ github.sha }}"
+
+      - name: Run database migrations
+        run: |
+          docker build --target migrator -t sazanami-portal-migrator .
+          docker run --rm \
+            -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+            sazanami-portal-migrator
+
+      - name: Deploy
+        working-directory: ${{ env.DEPLOY_DIR }}
+        run: |
+          docker compose pull
+          docker compose up -d
+          docker image prune -f
