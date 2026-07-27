@@ -112,14 +112,23 @@ export async function fetchMembersForViewer(viewerId: string): Promise<
   }
 
   const userIds = sorted.map((r) => String(r.id))
-  const { data: agreementRows, error: agreementErr } = await admin
-    .from('user_agreements')
-    .select('user_id, agreement_type')
-    .in('user_id', userIds)
+  // agreement と identity は共に userIds にしか依存しないので並列に投げる
+  const [agreementRes, identityRes] = await Promise.all([
+    admin
+      .from('user_agreements')
+      .select('user_id, agreement_type')
+      .in('user_id', userIds),
+    admin
+      .from('user_identities')
+      .select('user_id, provider, username, is_server_joined')
+      .in('user_id', userIds),
+  ])
 
-  if (agreementErr) {
-    return { ok: false, error: agreementErr.message ?? 'agreement_fetch_failed' }
+  if (agreementRes.error) {
+    return { ok: false, error: agreementRes.error.message ?? 'agreement_fetch_failed' }
   }
+  const agreementRows = agreementRes.data
+  const identityRows = identityRes.data
 
   const agreementMap = new Map<string, { tos: boolean; tech: boolean }>()
   for (const row of agreementRows ?? []) {
@@ -129,11 +138,6 @@ export async function fetchMembersForViewer(viewerId: string): Promise<
     if (r.agreement_type === 'tech_train') prev.tech = true
     agreementMap.set(r.user_id, prev)
   }
-
-  const { data: identityRows } = await admin
-    .from('user_identities')
-    .select('user_id, provider, username, is_server_joined')
-    .in('user_id', userIds)
 
   const identityMap = new Map<string, { discord: IdentityInfo | null; github: IdentityInfo | null }>()
   for (const row of identityRows ?? []) {
