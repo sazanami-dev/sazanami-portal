@@ -3,6 +3,22 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { supabaseServerUrl } from '@/lib/supabase/url'
 
+// join 判定（やり残しなし）の結果を短命でキャッシュする cookie。
+// 値には userId を入れて、別アカウントでログインし直したときに
+// 前ユーザーの「完了」判定を誤って流用しないようにする（不一致ならDB判定へ）。
+const JOIN_GATE_COOKIE = 'sz_join_ok'
+const JOIN_GATE_TTL_SECONDS = 60
+
+function joinGateCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: JOIN_GATE_TTL_SECONDS,
+  }
+}
+
 // 学籍番号パターン: 数字のみ (例: 12345678)
 const STUDENT_ID_SLUG_PATTERN = /^\/\d+\/[^/]+\/?$/
 
@@ -85,6 +101,17 @@ export async function updateSession(request: NextRequest) {
   // 判定結果を使わないパスは、ここで DB アクセスごとスキップする
   if (isAllowedWhileUnfinished(pathname)) return supabaseResponse
 
+  // 直近で「やり残しなし」と判定済み（かつ同一ユーザー）ならDBを一切引かない。
+  // prefetch を含む大量の遷移で毎回3クエリが飛ぶのを防ぐ。
+  if (request.cookies.get(JOIN_GATE_COOKIE)?.value === userId) {
+    if (pathname === '/join') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
+    return supabaseResponse
+  }
+
   // 3クエリは互いに独立なので並列に投げる（従来は逐次で3往復ぶん待っていた）
   const [appUserRes, identityRes, agreementRes] = await Promise.all([
     supabase.from('users').select('status').eq('id', userId).maybeSingle(),
@@ -132,12 +159,16 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse
   }
 
+  // やり残しなし → 次リクエスト以降はDBを引かないよう cookie を発行する
   // やり残しが無いのに /join に来たらトップへ
   if (pathname === '/join') {
     const url = request.nextUrl.clone()
     url.pathname = '/'
-    return NextResponse.redirect(url)
+    const redirectResponse = NextResponse.redirect(url)
+    redirectResponse.cookies.set(JOIN_GATE_COOKIE, userId, joinGateCookieOptions())
+    return redirectResponse
   }
 
+  supabaseResponse.cookies.set(JOIN_GATE_COOKIE, userId, joinGateCookieOptions())
   return supabaseResponse
 }
