@@ -192,12 +192,16 @@ export function resolveFileName(
     date: dateStr,
     time: timeStr,
     datetime: datetimeStr,
-    name: uploader?.name ?? '',
-    name_kana: uploader?.nameKana ?? '',
+    // 名前は半角/全角の空白を除去する（例: '山田 太郎' → '山田太郎'）
+    name: (uploader?.name ?? '').replace(/[\s　]+/g, ''),
+    name_kana: (uploader?.nameKana ?? '').replace(/[\s　]+/g, ''),
     student_id: uploader?.studentId ?? '',
     class_name: uploader?.className ?? '',
+    // 出席番号は常にゼロ埋め2桁に統一する（例: 5 → '05'）
     attendance_number:
-      uploader?.attendanceNumber != null ? String(uploader.attendanceNumber) : '',
+      uploader?.attendanceNumber != null
+        ? pad2(uploader.attendanceNumber)
+        : '',
     email: uploader?.email ?? '',
     role: uploader?.role ?? '',
     graduation_year:
