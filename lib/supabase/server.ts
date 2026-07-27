@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { supabaseServerUrl } from '@/lib/supabase/url'
 
 /**
  * If using Fluid compute: Don't put this client in a global variable. Always create a new client within each
@@ -10,7 +11,7 @@ export async function createClient() {
   const cookieStore = await cookies()
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    supabaseServerUrl(),
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
@@ -34,7 +35,7 @@ export async function createClient() {
 }
 export function createAdminClient() {
   return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    supabaseServerUrl(),
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
       auth: {
