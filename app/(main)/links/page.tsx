@@ -1,22 +1,21 @@
 import { redirect } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
+import { getAuthenticatedViewerId } from '@/lib/members/route-helpers'
 import { listLinks } from '@/lib/links/service'
 import { canCreateOfficialLink, canCreateCareerLink, OFFICIAL_LINK_NAMESPACE, CAREER_LINK_NAMESPACE } from '@/lib/links/permissions'
 import type { AppRole } from '@/lib/members/permissions'
 import LinksClient from './links-client'
 
 export default async function LinksPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) redirect('/signin')
+  // getUser() ではなく getClaims() ベースで id を得る（Auth往復を1回削減）
+  const userId = await getAuthenticatedViewerId()
+  if (!userId) redirect('/signin')
 
   const admin = createAdminClient()
   const { data: userRow } = await admin
     .from('users')
     .select('role, student_id, name')
-    .eq('id', user.id)
+    .eq('id', userId)
     .maybeSingle()
 
   if (!userRow) redirect('/signin')
@@ -26,7 +25,7 @@ export default async function LinksPage() {
   const canOfficial = canCreateOfficialLink(role) // admin / developer / manager
   const canCareer = canCreateCareerLink(role) // admin / developer / manager
   const links = await listLinks({
-    createdBy: user.id,
+    createdBy: userId,
     adminView: isFullAdmin,
     includeAllOfficial: !isFullAdmin && canOfficial,
   })
@@ -48,7 +47,7 @@ export default async function LinksPage() {
   return (
     <LinksClient
       links={links}
-      currentUserId={user.id}
+      currentUserId={userId}
       currentUserName={userRow.name}
       studentId={userRow.student_id ?? null}
       canCreateOfficial={canOfficial}
