@@ -1,29 +1,18 @@
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { canManagePendingMembers } from '@/lib/members/permissions'
 import { fetchMembersForViewer, type MemberFullRow } from '@/lib/members/service'
-import { createClient } from '@/lib/supabase/server'
+import { requireViewerRole } from '@/lib/members/route-helpers'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ApprovalsClient } from './approvals-client'
 
 export default async function MemberApprovalsPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) redirect('/signin')
-
-  const result = await fetchMembersForViewer(user.id)
-  if (!result.ok) {
-    if (result.error === 'forbidden') redirect('/')
-    redirect('/error')
-  }
-  if (!canManagePendingMembers(result.viewerRole)) {
-    redirect('/members')
-  }
-
-  const pendingRows = (result.members as MemberFullRow[]).filter(
-    (r) => r.status === 'pending'
-  )
+  // シェルと権限判定に role が要るのでここだけ待つ（1往復）
+  const { userId, role, error } = await requireViewerRole()
+  if (error === 'unauthenticated') redirect('/signin')
+  if (!userId || !role) redirect('/error')
+  if (!canManagePendingMembers(role)) redirect('/members')
 
   return (
     <div className="container mx-auto max-w-6xl space-y-6 p-6">
@@ -41,7 +30,33 @@ export default async function MemberApprovalsPage() {
           メンバー一覧へ戻る
         </Link>
       </div>
-      <ApprovalsClient rows={pendingRows} />
+      <Suspense fallback={<ApprovalsSkeleton />}>
+        <ApprovalsSection viewerId={userId} />
+      </Suspense>
+    </div>
+  )
+}
+
+async function ApprovalsSection({ viewerId }: { viewerId: string }) {
+  const result = await fetchMembersForViewer(viewerId)
+  if (!result.ok) {
+    if (result.error === 'forbidden') redirect('/')
+    redirect('/error')
+  }
+
+  const pendingRows = (result.members as MemberFullRow[]).filter(
+    (r) => r.status === 'pending'
+  )
+
+  return <ApprovalsClient rows={pendingRows} />
+}
+
+function ApprovalsSkeleton() {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Skeleton key={i} className="h-16 w-full" />
+      ))}
     </div>
   )
 }
