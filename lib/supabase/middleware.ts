@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { supabaseServerUrl } from '@/lib/supabase/url'
+import { supabaseServerUrl, supabaseCookieName } from '@/lib/supabase/url'
 
 // join 判定（やり残しなし）の結果を短命でキャッシュする cookie。
 // 値には userId を入れて、別アカウントでログインし直したときに
@@ -59,6 +59,7 @@ export async function updateSession(request: NextRequest) {
     supabaseServerUrl(),
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      cookieOptions: { name: supabaseCookieName() },
       cookies: {
         getAll() {
           return request.cookies.getAll()
