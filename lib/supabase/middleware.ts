@@ -19,6 +19,33 @@ function joinGateCookieOptions() {
   }
 }
 
+/**
+ * リダイレクト応答を作る。
+ *
+ * NextResponse.redirect() は新しいレスポンスなので、そのまま返すと
+ * supabaseResponse に積まれた Set-Cookie が失われる。getClaims() は
+ * アクセストークンの残り寿命が 90 秒を切ると内部で同期リフレッシュを行い
+ * （autoRefreshToken:false でも getSession 経由で走る）、新しい
+ * refresh_token の Set-Cookie がここに積まれている。
+ *
+ * これを取りこぼすとブラウザは古い refresh_token を持ち続け、次回提示時に
+ * GoTrue のローテーション再利用検知でトークンファミリごと失効する
+ * ＝ 突然ログアウトする。サインアウト時の Cookie 削除も同様に失われる。
+ */
+function redirectWithSession(
+  request: NextRequest,
+  pathname: string,
+  supabaseResponse: NextResponse
+): NextResponse {
+  const url = request.nextUrl.clone()
+  url.pathname = pathname
+  const response = NextResponse.redirect(url)
+  for (const cookie of supabaseResponse.cookies.getAll()) {
+    response.cookies.set(cookie)
+  }
+  return response
+}
+
 // 学籍番号パターン: 数字のみ (例: 12345678)
 const STUDENT_ID_SLUG_PATTERN = /^\/\d+\/[^/]+\/?$/
 
@@ -91,9 +118,7 @@ export async function updateSession(request: NextRequest) {
     !pathname.startsWith('/api/auth/oauth') &&
     !pathname.startsWith('/api/links')
   ) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/signin'
-    return NextResponse.redirect(url)
+    return redirectWithSession(request, '/signin', supabaseResponse)
   }
 
   const userId = claims?.sub
@@ -106,9 +131,7 @@ export async function updateSession(request: NextRequest) {
   // prefetch を含む大量の遷移で毎回3クエリが飛ぶのを防ぐ。
   if (request.cookies.get(JOIN_GATE_COOKIE)?.value === userId) {
     if (pathname === '/join') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/'
-      return NextResponse.redirect(url)
+      return redirectWithSession(request, '/', supabaseResponse)
     }
     return supabaseResponse
   }
@@ -153,9 +176,7 @@ export async function updateSession(request: NextRequest) {
   if (hasUnfinishedTasks) {
     // ここに来る pathname は /join か保護パスのみ（許可パスは上で除外済み）
     if (pathname !== '/join') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/join'
-      return NextResponse.redirect(url)
+      return redirectWithSession(request, '/join', supabaseResponse)
     }
     return supabaseResponse
   }
@@ -163,9 +184,7 @@ export async function updateSession(request: NextRequest) {
   // やり残しなし → 次リクエスト以降はDBを引かないよう cookie を発行する
   // やり残しが無いのに /join に来たらトップへ
   if (pathname === '/join') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    const redirectResponse = NextResponse.redirect(url)
+    const redirectResponse = redirectWithSession(request, '/', supabaseResponse)
     redirectResponse.cookies.set(JOIN_GATE_COOKIE, userId, joinGateCookieOptions())
     return redirectResponse
   }
