@@ -9,8 +9,10 @@
  *
  * NOTE: このファイルは proxy(Edge Runtime) からも import されるため、
  *       next/headers など Server Component 専用 API を持ち込まないこと。
- *       ブラウザ用クライアント(lib/supabase/client.ts)では使わない
- *       —— NEXT_PUBLIC_SUPABASE_URL は外部ユーザーのブラウザが解決するため。
+ *       また supabaseServerUrl() をブラウザ用クライアント
+ *       (lib/supabase/client.ts)から呼ばないこと —— 接続先は
+ *       NEXT_PUBLIC_SUPABASE_URL でなければ外部ユーザーが解決できない。
+ *       （client.ts が import してよいのは supabaseCookieName() だけ）
  */
 export function supabaseServerUrl(): string {
   return process.env.SUPABASE_INTERNAL_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!
