@@ -2,21 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { User } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { Button } from '@/app/(auth)/components/ui/button'
 
-type AppUser = {
-  status: string
-}
-
-export function JoinCompletedSection({
-  authUser,
-  appUser,
-}: {
-  authUser: User
-  appUser: AppUser
-}) {
+export function JoinCompletedSection() {
   const router = useRouter()
   const [remaining, setRemaining] = useState(3)
 

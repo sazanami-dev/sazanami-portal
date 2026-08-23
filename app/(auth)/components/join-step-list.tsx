@@ -10,7 +10,7 @@ export function JoinStepList({ steps }: { steps: StepItem[] }) {
   return (
     <div className="w-full max-w-4xl mx-auto my-5 p-5 rounded-xl">
       <ol className="flex justify-between items-start w-full">
-        {steps.map((step, i) => {
+        {steps.map((step) => {
           const isReached = step.status === 'done' || step.status === 'current'
 
           return (

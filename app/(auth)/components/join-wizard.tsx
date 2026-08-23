@@ -86,15 +86,7 @@ function splitName(full: string): { last: string; first: string } {
   return { last: full ?? '', first: '' }
 }
 
-export function JoinWizard({
-  authUser,
-  isDiscordJoined,
-  isGitHubJoined,
-}: {
-  authUser: User
-  isDiscordJoined: boolean
-  isGitHubJoined: boolean
-}) {
+export function JoinWizard({ authUser }: { authUser: User }) {
   const [state, setState] = useState<WizardState>({ step: 'signup' })
   const [hydrated, setHydrated] = useState(false)
 
@@ -209,9 +201,6 @@ export function JoinWizard({
     return (
       <JoinConnectionSection
         authUser={authUser}
-        canJoinOrg={false}
-        isDiscordJoined={isDiscordJoined}
-        isGitHubJoined={isGitHubJoined}
         userInfo={userInfo}
         agreementInfo={{
           tosAgreed: state.agreementData?.tosAgreed ?? false,

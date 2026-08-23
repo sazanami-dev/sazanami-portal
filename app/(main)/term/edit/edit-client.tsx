@@ -41,11 +41,11 @@ export default function EditClient() {
             let j: SaveResponse | null = null
             try {
                 j = await res.json()
-            } catch (e) {
+            } catch {
                 try {
                     const txt = await res.text()
                     j = txt ? { text: txt } : null
-                } catch (_) {
+                } catch {
                     j = null
                 }
             }

@@ -63,18 +63,12 @@ function getIdentityDisplay(identity: UserIdentity) {
 
 export function JoinConnectionSection({
   authUser,
-  canJoinOrg,
-  isDiscordJoined,
-  isGitHubJoined,
   userInfo,
   agreementInfo,
   onConfirm,
   onBack,
 }: {
   authUser: User
-  canJoinOrg: boolean
-  isDiscordJoined: boolean
-  isGitHubJoined: boolean
   /** モーダルに表示する登録情報。未指定時は authUser から最低限を構築。 */
   userInfo?: ConnectionUserInfo
   /** モーダルに表示する同意事項。 */

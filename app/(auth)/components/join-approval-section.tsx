@@ -1,7 +1,6 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { CheckCircle2, Clock } from "lucide-react"
 import { JoinPlatformActions } from "./join-platform-actions"
 
