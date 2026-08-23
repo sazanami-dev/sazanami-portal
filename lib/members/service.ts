@@ -2,6 +2,16 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { isItSchoolEmail } from '@/lib/members/email'
 import type { AppRole } from '@/lib/members/permissions'
 
+/**
+ * 認可上「有効」とみなす users.status。
+ *
+ * status の検証は middleware の join ゲートにもあるが、ゲートは UX 上の
+ * リダイレクトであって認可の境界ではない（短命 cookie でキャッシュしており、
+ * cookie は利用者が自由に付け替えられる）。認可を実際に行うこの層でも
+ * 必ず検証し、ゲートを迂回されても権限が通らないようにする。
+ */
+const ACTIVE_STATUS = 'active'
+
 export type MemberSummaryRow = {
   id: string
   class_name: string | null
@@ -53,14 +63,16 @@ function mapFullRow(r: Record<string, unknown>): Omit<MemberFullRow, 'tos_agreed
   }
 }
 
+/** status が active でない利用者には role を与えない（＝未認可として扱う）。 */
 export async function getViewerRole(userId: string): Promise<AppRole | null> {
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('users')
-    .select('role')
+    .select('role, status')
     .eq('id', userId)
     .maybeSingle()
   if (error || !data) return null
+  if (data.status !== ACTIVE_STATUS) return null
   return data.role as AppRole
 }
 
@@ -71,12 +83,17 @@ export async function fetchMembersForViewer(viewerId: string): Promise<
   const admin = createAdminClient()
   const { data: viewer, error: ve } = await admin
     .from('users')
-    .select('role')
+    .select('role, status')
     .eq('id', viewerId)
     .maybeSingle()
 
   if (ve || !viewer) {
     return { ok: false, error: 'not_registered' }
+  }
+
+  // 全員分の個人情報を返す経路なので、ここでも status を確認する
+  if (viewer.status !== ACTIVE_STATUS) {
+    return { ok: false, error: 'forbidden' }
   }
 
   const viewerRole = viewer.role as AppRole
