@@ -2,11 +2,35 @@ import { NextResponse } from 'next/server'
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 
+/**
+ * リダイレクト先のオリジンを決める。
+ *
+ * 以前は x-forwarded-host をそのまま信用していたが、このヘッダは
+ * クライアントが自由に送れる（Cloudflare は既定で付与も除去もしない）。
+ * OAuth コールバックが任意の外部ホストへ飛ばせるオープンリダイレクトになる。
+ *
+ * ALLOWED_FORWARDED_HOSTS（カンマ区切り）に載っているホストだけ採用し、
+ * それ以外は Host 由来の origin にフォールバックする。本番では TLS を
+ * 手前で終端している構成でも https を維持できるよう、プロトコルを固定する。
+ */
+function redirectBase(origin: string, forwardedHost: string | null): string {
+  if (process.env.NODE_ENV === 'development') return origin
+
+  const allowed = (process.env.ALLOWED_FORWARDED_HOSTS ?? '')
+    .split(',')
+    .map((host) => host.trim())
+    .filter(Boolean)
+  if (forwardedHost && allowed.includes(forwardedHost)) {
+    return `https://${forwardedHost}`
+  }
+
+  const url = new URL(origin)
+  url.protocol = 'https:'
+  return url.origin
+}
+
 function redirectTo(origin: string, forwardedHost: string | null, next: string) {
-  const isLocalEnv = process.env.NODE_ENV === 'development'
-  if (isLocalEnv) return NextResponse.redirect(`${origin}${next}`)
-  if (forwardedHost) return NextResponse.redirect(`https://${forwardedHost}${next}`)
-  return NextResponse.redirect(`${origin}${next}`)
+  return NextResponse.redirect(`${redirectBase(origin, forwardedHost)}${next}`)
 }
 
 export async function GET(request: Request) {
