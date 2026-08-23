@@ -2,22 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { supabaseServerUrl, supabaseCookieName } from '@/lib/supabase/url'
-
-// join 判定（やり残しなし）の結果を短命でキャッシュする cookie。
-// 値には userId を入れて、別アカウントでログインし直したときに
-// 前ユーザーの「完了」判定を誤って流用しないようにする（不一致ならDB判定へ）。
-const JOIN_GATE_COOKIE = 'sz_join_ok'
-const JOIN_GATE_TTL_SECONDS = 60
-
-function joinGateCookieOptions() {
-  return {
-    httpOnly: true,
-    sameSite: 'lax' as const,
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: JOIN_GATE_TTL_SECONDS,
-  }
-}
+import { JOIN_GATE_COOKIE, joinGateCookieOptions } from '@/lib/auth/join-gate'
 
 /**
  * リダイレクト応答を作る。
@@ -116,6 +101,9 @@ export async function updateSession(request: NextRequest) {
     !pathname.startsWith('/signin') &&
     !pathname.startsWith('/auth') &&
     !pathname.startsWith('/api/auth/oauth') &&
+    // サインアウトは残った cookie を消すためのものなので、
+    // セッションが先に切れていても必ずハンドラまで到達させる
+    !pathname.startsWith('/api/auth/signout') &&
     !pathname.startsWith('/api/links')
   ) {
     return redirectWithSession(request, '/signin', supabaseResponse)
