@@ -85,9 +85,9 @@ export async function GET(request: Request) {
     if (appUser) {
       const adminSupabase = createAdminClient()
       const identities = userData.user.identities ?? []
-      const targetProviders = ['discord', 'github'] as const
+      const targetProviders: readonly string[] = ['discord', 'github']
       for (const identity of identities) {
-        if (!targetProviders.includes(identity.provider as any)) continue
+        if (!targetProviders.includes(identity.provider)) continue
         const identityData = (identity.identity_data ?? {}) as Record<string, unknown>
         const providerUserId = identity.id
         const username =

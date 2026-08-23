@@ -119,8 +119,8 @@ export default function CalendarClient() {
                 const errors = data.results.filter((r) => r && r.error)
 
                 const successClientIds = data.results
-                    .filter((r) => r && r.clientId && r.id)
-                    .map((r) => (r as any).clientId as string)
+                    .filter((r): r is NonNullable<typeof r> => Boolean(r && r.clientId && r.id))
+                    .map((r) => r.clientId as string)
                 if (successClientIds.length > 0) {
                     setEvents(prev => prev.filter(e => !successClientIds.includes(e.id)))
                 }

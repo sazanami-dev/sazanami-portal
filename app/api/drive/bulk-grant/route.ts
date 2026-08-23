@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { errorMessage } from '@/lib/errors'
 import { google } from 'googleapis'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 
@@ -56,8 +57,8 @@ export async function POST() {
         existingEmails.add(p.emailAddress.toLowerCase())
       }
     }
-  } catch (e: any) {
-    console.error('[drive/bulk-grant] permissions.list failed:', e?.message)
+  } catch (e) {
+    console.error('[drive/bulk-grant] permissions.list failed:', errorMessage(e))
   }
 
   const grantedEmails: string[] = []
@@ -77,8 +78,8 @@ export async function POST() {
         requestBody: { role: 'reader', type: 'user', emailAddress: email },
       })
       grantedEmails.push(email)
-    } catch (e: any) {
-      console.error('[drive/bulk-grant] permissions.create failed:', email, e?.message)
+    } catch (e) {
+      console.error('[drive/bulk-grant] permissions.create failed:', email, errorMessage(e))
       failed.push({ email, error: 'drive_permission_failed' })
     }
   }

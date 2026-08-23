@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { errorMessage } from '@/lib/errors'
 
 export async function POST() {
   const supabase = await createClient()
@@ -60,8 +61,8 @@ export async function POST() {
     if (alreadyGranted) {
       return NextResponse.json({ granted: true, alreadyExisted: true })
     }
-  } catch (listErr: any) {
-    console.error('[drive/grant-access] permissions.list failed:', listErr?.message)
+  } catch (listErr) {
+    console.error('[drive/grant-access] permissions.list failed:', errorMessage(listErr))
   }
 
   try {
@@ -76,8 +77,8 @@ export async function POST() {
       },
     })
     return NextResponse.json({ granted: true })
-  } catch (createErr: any) {
-    console.error('[drive/grant-access] permissions.create failed:', createErr?.message)
+  } catch (createErr) {
+    console.error('[drive/grant-access] permissions.create failed:', errorMessage(createErr))
     return NextResponse.json({ error: 'drive_permission_failed' }, { status: 500 })
   }
 }

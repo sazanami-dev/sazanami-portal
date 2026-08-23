@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useRef } from "react"
+
+import { errorMessage } from "@/lib/errors"
 import InputEditor from "../components/InputEditor"
 import MarkdownPreview from "../components/MarkdownPreview"
 import styles from "../ui.module.css"
@@ -35,7 +37,8 @@ export default function EditClient() {
                 credentials: 'same-origin',
             })
 
-            let j: any = null
+            type SaveResponse = { error?: string; detail?: string; text?: string; version?: number }
+            let j: SaveResponse | null = null
             try {
                 j = await res.json()
             } catch (e) {
@@ -55,9 +58,9 @@ export default function EditClient() {
             }
 
             alert(`会則を適用（保存）しました！ バージョン: ${j?.version ?? 'unknown'}`)
-        } catch (err: any) {
+        } catch (err) {
             console.error('保存に失敗しました:', err)
-            alert(`保存に失敗しました: ${err?.message ?? err}`)
+            alert(`保存に失敗しました: ${errorMessage(err)}`)
         }
     }
 

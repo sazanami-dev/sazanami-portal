@@ -14,21 +14,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
-    let bodyJson: any = null;
+    let bodyJson: unknown = null;
     try {
         bodyJson = await request.json();
     } catch (err) {
         return NextResponse.json({ error: "invalid_json" }, { status: 400 });
     }
 
-    if (!bodyJson || typeof bodyJson.content !== "string") {
+    if (
+        !bodyJson ||
+        typeof bodyJson !== "object" ||
+        typeof (bodyJson as { content?: unknown }).content !== "string"
+    ) {
         return NextResponse.json(
             { error: "invalid_body", detail: "missing content string" },
             { status: 400 },
         );
     }
 
-    const { content } = bodyJson;
+    const { content } = bodyJson as { content: string };
 
     const admin = createAdminClient();
 

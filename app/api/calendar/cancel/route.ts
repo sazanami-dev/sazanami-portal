@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
+import { errorMessage } from '@/lib/errors'
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 type RequestBody = {
@@ -100,7 +101,7 @@ export async function POST(req: Request) {
       return false;
     });
 
-    const results: any[] = [];
+    const results: { id?: string | null; error?: string }[] = [];
     for (let i = 0; i < toDelete.length; i++) {
       const ev = toDelete[i];
       if (!ev.id) {
@@ -110,14 +111,14 @@ export async function POST(req: Request) {
       try {
         await calendar.events.delete({ calendarId: calId, eventId: ev.id });
         results.push({ id: ev.id });
-      } catch (_e: any) {
-        const short = String(_e?.message ?? "不明なエラー").slice(0, 200);
+      } catch (_e) {
+        const short = errorMessage(_e).slice(0, 200);
         results.push({ error: `イベント削除に失敗しました: ${short}` });
       }
     }
 
     return NextResponse.json({ results });
-  } catch (err: any) {
+  } catch {
     return NextResponse.json(
       { error: "サーバーエラーが発生しました" },
       { status: 500 },
