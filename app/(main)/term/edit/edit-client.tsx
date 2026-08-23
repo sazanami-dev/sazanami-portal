@@ -8,10 +8,11 @@ import mdStyles from "../markdown.module.css"
 
 type ViewMode = "both" | "input" | "preview"
 
+// NOTE: 以前は先頭で InputEditor / MarkdownPreview の存在チェックをして
+//       early return していたが、どちらも静的 import の default export なので
+//       この分岐は到達せず、フックを早期 return の後ろで宣言する形だけが残って
+//       いた（条件が成立し得る形に変えた瞬間にフック順序が崩れてクラッシュする）。
 export default function EditClient() {
-    if (!InputEditor || !MarkdownPreview) {
-        return <div style={{ padding: 24 }}>編集コンポーネントの読み込みに失敗しました。コンソールを確認してください。</div>
-    }
     const [text, setText] = useState<string>("# Hello Term\n\n会則の内容をここに入力してください")
     const [mode, setMode] = useState<ViewMode>("both")
 

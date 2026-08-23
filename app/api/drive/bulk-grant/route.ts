@@ -44,7 +44,7 @@ export async function POST() {
   const drive = google.drive({ version: 'v3', auth: oAuth2Client })
 
   // 既存 permission 一覧を取得（重複スキップ用）
-  let existingEmails = new Set<string>()
+  const existingEmails = new Set<string>()
   try {
     const existing = await drive.permissions.list({
       fileId: folderId,
