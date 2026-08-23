@@ -6,12 +6,37 @@ import {
   linkUnlockCookieName,
   linkUnlockCookieOptions,
 } from '@/lib/links/unlock-cookie'
+import { clientKey, consumeRateLimit } from '@/lib/rate-limit'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
-// TODO: レート制限を追加すること（ブルートフォース対策）
+const WINDOW_SECONDS = 600
+/** 同一の要求元から、1つのリンクに対して許す試行回数 */
+const PER_CLIENT_LIMIT = 10
+/** 要求元を問わず、1つのリンクに対して許す試行回数 */
+const PER_LINK_LIMIT = 100
+
+function tooManyRequests(retryAfterSeconds: number) {
+  return NextResponse.json(
+    { error: 'too_many_requests' },
+    { status: 429, headers: { 'Retry-After': String(retryAfterSeconds) } }
+  )
+}
+
 export async function POST(request: Request, context: RouteContext) {
   const { id } = await context.params
+
+  // パスワード照合は bcrypt で意図的に重いため、上限判定を先に行う
+  const perClient = consumeRateLimit(
+    `link-password:${clientKey(request)}:${id}`,
+    PER_CLIENT_LIMIT,
+    WINDOW_SECONDS
+  )
+  if (!perClient.allowed) return tooManyRequests(perClient.retryAfterSeconds)
+
+  // 転送ヘッダは要求元が名乗るものなので、リンク単位の上限も併せて設ける
+  const perLink = consumeRateLimit(`link-password:${id}`, PER_LINK_LIMIT, WINDOW_SECONDS)
+  if (!perLink.allowed) return tooManyRequests(perLink.retryAfterSeconds)
 
   const body = await request.json().catch(() => null)
   if (!body || typeof body.password !== 'string') {
