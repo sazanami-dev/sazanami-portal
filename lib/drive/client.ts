@@ -38,13 +38,8 @@ export function getDriveClient(): {
 /**
  * Drive API の q パラメータに埋め込む文字列をエスケープする。
  *
- * q は単一引用符で囲む構文で、バックスラッシュがエスケープ文字になる。
- * 引用符だけを置換するとバックスラッシュ自体が未処理のまま残り、末尾が
- * `\` の名前で `name='foo\'` となって引用符を脱出できてしまう。
- * バックスラッシュを先に処理すること。
- *
- * 現状 findOrCreateFolder に渡る名前は sanitizeName() が [\/] を潰して
- * いるため到達しないが、エスケープ自体を正しくしておく。
+ * q は単一引用符で囲む構文で、バックスラッシュがエスケープ文字になるため、
+ * バックスラッシュを先に、引用符を後に処理する必要がある。
  */
 export function escapeDriveQueryValue(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")

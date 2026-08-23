@@ -10,10 +10,8 @@ export async function POST() {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
   }
 
-  // 付与条件はクライアント側(join-platform-actions)でしか見ていなかったため、
-  // 認証さえ通れば誰でも共有ドライブの閲覧権限を取得できていた。
-  // Google OAuth にドメイン制限が無く誰でもサインインできるので、
-  // 同じ条件をサーバー側でも検証する。
+  // 付与条件はサーバー側で確認する。呼び出し元(join-platform-actions)の
+  // 判定は UI の出し分けであって、認可の根拠にはしない。
   const admin = createAdminClient()
   const [appUserRes, identityRes] = await Promise.all([
     admin.from('users').select('id').eq('id', user.id).maybeSingle(),

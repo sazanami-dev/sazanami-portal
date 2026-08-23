@@ -1,7 +1,6 @@
 'use client'
 
-// (main) 配下のエラー境界。従来は境界が無く、
-// データ取得失敗時に画面全体が固まっていた。
+// (main) 配下のエラー境界。データ取得に失敗しても再試行できるようにする。
 export default function Error({
   error,
   reset,

@@ -6,7 +6,7 @@ import termStyles from "./ui.module.css"
 import mdStyles from "./markdown.module.css"
 
 type Props = {
-    // 会則本文はサーバー側で取得して props で渡す（従来はここで /api/term/export を再取得していた）
+    // 会則本文はサーバー側で取得して props で受け取る
     content: string | null
     isAuthorized: boolean
 }

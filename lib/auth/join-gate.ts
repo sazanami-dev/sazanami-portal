@@ -4,8 +4,8 @@ import { issueSignedCookieValue, verifySignedCookieValue } from '@/lib/auth/sign
  * join フロー完了判定の短命キャッシュ cookie。
  *
  * NOTE: この cookie は「DB を引かずにゲートを通す」ための最適化であって、
- *       認可の根拠ではない。実際の認可は getViewerRole() が users.status を
- *       見て行う（lib/members/service.ts）。署名はあくまで多層防御。
+ *       認可の根拠ではない。認可は getViewerRole() が users.status を見て行う
+ *       （lib/members/service.ts）。
  */
 export const JOIN_GATE_COOKIE = 'sz_join_ok'
 

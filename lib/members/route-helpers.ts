@@ -3,8 +3,8 @@ import { getViewerRole } from '@/lib/members/service'
 
 export async function getAuthenticatedViewerId(): Promise<string | null> {
   const supabase = await createClient()
-  // getUser() は必ず Auth API へ往復するが、getClaims() は JWT 検証で済む。
-  // 非対称鍵(JWKS)へ移行すればローカル検証となり往復ゼロになる。
+  // getClaims() は JWT の検証で済むため、Auth API への往復が不要
+  // （非対称鍵の JWKS はローカル検証される）。
   const { data, error } = await supabase.auth.getClaims()
   const userId = data?.claims?.sub
   if (error || !userId) return null

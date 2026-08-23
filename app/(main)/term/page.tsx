@@ -8,8 +8,6 @@ export default async function TermPage() {
     const supabase = await createClient()
 
     // 会則本文の取得と権限判定は互いに独立なので並列に投げる。
-    // 従来はサーバーで getUser を待ったあと、クライアントが /api/term/export を
-    // 再取得しており2往復ぶん待たせていた。
     const [roleCtx, termsRes] = await Promise.all([
         requireViewerRole(),
         supabase

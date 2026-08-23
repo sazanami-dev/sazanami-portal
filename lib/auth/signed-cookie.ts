@@ -5,9 +5,9 @@
  * 双方から使うため、next/headers など実行環境に依存する API は import しないこと。
  * 署名には両環境で使える Web Crypto を用いる。
  *
- * 値の形式は `subject.expiresAt.signature`。有効期限も署名対象に含めるため、
- * 利用者が値を控えておいて後から貼り直しても TTL を過ぎていれば通らない
- * （cookie の maxAge は利用者が書き換えられるので当てにしない）。
+ * 値の形式は `subject.expiresAt.signature`。有効期限は cookie の maxAge では
+ * なく署名対象の payload 側で担保する（cookie 属性は受信側で書き換えられる
+ * 前提で扱うため）。
  *
  * purpose は用途ラベルで、署名の入力に含めてドメイン分離する。これにより
  * ある用途の正規の値を別用途の cookie に流用することができない。
@@ -38,7 +38,7 @@ async function sign(purpose: string, payload: string, secret: string): Promise<s
   return toBase64Url(await crypto.subtle.sign('HMAC', key, ENCODER.encode(`${purpose}:${payload}`)))
 }
 
-/** 長さと内容の両方で早期 return しない比較（署名の総当たりを助けないため） */
+/** 比較にかかる時間が内容に依存しないようにする */
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false
   let diff = 0

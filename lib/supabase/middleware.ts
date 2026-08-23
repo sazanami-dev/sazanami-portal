@@ -12,15 +12,11 @@ import {
 /**
  * リダイレクト応答を作る。
  *
- * NextResponse.redirect() は新しいレスポンスなので、そのまま返すと
- * supabaseResponse に積まれた Set-Cookie が失われる。getClaims() は
- * アクセストークンの残り寿命が 90 秒を切ると内部で同期リフレッシュを行い
- * （autoRefreshToken:false でも getSession 経由で走る）、新しい
- * refresh_token の Set-Cookie がここに積まれている。
- *
- * これを取りこぼすとブラウザは古い refresh_token を持ち続け、次回提示時に
- * GoTrue のローテーション再利用検知でトークンファミリごと失効する
- * ＝ 突然ログアウトする。サインアウト時の Cookie 削除も同様に失われる。
+ * NextResponse.redirect() は新しいレスポンスなので、supabaseResponse に
+ * 積まれた Set-Cookie を明示的に移し替える必要がある。getClaims() は
+ * アクセストークンの残り寿命が 90 秒を切ると内部で同期リフレッシュを行う
+ * ため（autoRefreshToken:false でも getSession 経由で走る）、ここには
+ * 更新後のセッション cookie が入っていることがある。
  */
 function redirectWithSession(
   request: NextRequest,
@@ -122,7 +118,7 @@ export async function updateSession(request: NextRequest) {
 
   // 直近で「やり残しなし」と判定済み（かつ同一ユーザー）ならDBを一切引かない。
   // prefetch を含む大量の遷移で毎回3クエリが飛ぶのを防ぐ。
-  // 値は署名付きで、利用者が細工した cookie は検証に落ちてDB判定へ回る。
+  // 値は署名付きで、検証に通らなければDB判定へ回る。
   if (await isValidJoinGateValue(request.cookies.get(JOIN_GATE_COOKIE)?.value, userId)) {
     if (pathname === '/join') {
       return redirectWithSession(request, '/', supabaseResponse)
@@ -130,7 +126,7 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse
   }
 
-  // 3クエリは互いに独立なので並列に投げる（従来は逐次で3往復ぶん待っていた）
+  // 3クエリは互いに独立なので並列に投げる
   const [appUserRes, identityRes, agreementRes] = await Promise.all([
     supabase.from('users').select('status').eq('id', userId).maybeSingle(),
     supabase
@@ -145,7 +141,7 @@ export async function updateSession(request: NextRequest) {
       .maybeSingle(),
   ])
 
-  // DB障害時は判定不能なのでリダイレクトせず素通しする（従来の appUserErr ガードと同じ挙動）
+  // DB障害時は判定不能なのでリダイレクトせず素通しする
   if (appUserRes.error) return supabaseResponse
 
   const appUser = appUserRes.data
@@ -161,7 +157,7 @@ export async function updateSession(request: NextRequest) {
     !!githubIdentity.is_server_joined &&
     !!discordIdentity.is_server_joined
 
-  // 従来は hasRegistration の時だけ agreement を取得していたので、その条件を維持する
+  // 同意は登録済みの場合のみ有効とみなす
   const hasAgreements = hasRegistration && !!agreementRes.data
 
   const hasUnfinishedTasks =

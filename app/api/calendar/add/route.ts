@@ -155,10 +155,6 @@ export async function POST(req: Request) {
         const summary = makeSummary(safeTitle || undefined, safeLocation || undefined);
         const event: calendar_v3.Schema$Event = { summary, start, end };
         event.reminders = { useDefault: false };
-        // NOTE: 以前は event.conferenceData = { useDefault: false } を設定していたが、
-        //       Schema$ConferenceData に useDefault というフィールドは存在せず
-        //       （any で型付けしていたため気づかれていなかった）、Meet を作らない
-        //       のは conferenceDataVersion を渡さない既定動作なので削除した。
         if (color) event.colorId = color;
         if (safeLocation) event.location = safeLocation;
 

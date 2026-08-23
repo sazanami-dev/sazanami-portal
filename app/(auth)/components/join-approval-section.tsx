@@ -7,10 +7,7 @@ import { JoinPlatformActions } from "./join-platform-actions"
 // 状態の型定義
 type ApprovalStatus = "pending" | "approved"
 
-// NOTE: 以前は useState(initialStatus) で状態を持っていたが、更新関数を
-//       一度も呼ばないため、親が新しい値を渡しても初回マウント時の値のまま
-//       固定されていた（承認後も「承認待ちです」が残る）。props をそのまま
-//       描画に使う。
+// 表示状態は親が制御する（このコンポーネントは状態を持たない）
 export default function JoinApprovalSection({
   status = "pending",
 }: {

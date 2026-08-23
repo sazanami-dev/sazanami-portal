@@ -5,10 +5,8 @@ import type { AppRole } from '@/lib/members/permissions'
 /**
  * 認可上「有効」とみなす users.status。
  *
- * status の検証は middleware の join ゲートにもあるが、ゲートは UX 上の
- * リダイレクトであって認可の境界ではない（短命 cookie でキャッシュしており、
- * cookie は利用者が自由に付け替えられる）。認可を実際に行うこの層でも
- * 必ず検証し、ゲートを迂回されても権限が通らないようにする。
+ * middleware の join ゲートにも同じ判定があるが、あちらは UX 上のリダイレクトで
+ * あって認可の境界ではない。認可を実際に行うこの層で必ず検証する。
  */
 const ACTIVE_STATUS = 'active'
 

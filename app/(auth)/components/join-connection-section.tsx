@@ -73,7 +73,7 @@ export function JoinConnectionSection({
   userInfo?: ConnectionUserInfo
   /** モーダルに表示する同意事項。 */
   agreementInfo?: ConnectionAgreementInfo
-  /** モーダル確認時のコールバック。未指定時は従来通り JoinApprovalSection に遷移するのみ。 */
+  /** モーダル確認時のコールバック。未指定なら JoinApprovalSection に遷移するのみ。 */
   onConfirm?: () => Promise<void> | void
   /** 前のステップへ戻る場合に指定 */
   onBack?: () => void

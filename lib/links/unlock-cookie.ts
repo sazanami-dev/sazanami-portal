@@ -3,11 +3,8 @@ import { issueSignedCookieValue, verifySignedCookieValue } from '@/lib/auth/sign
 /**
  * パスワード保護リンクの解錠 cookie。
  *
- * 以前は `lv_<linkId>=1` という固定値だった。linkId は PasswordForm に渡され
- * ページに埋め込まれるため、訪問者が自分で `lv_<linkId>=1` を付けるだけで
- * パスワードを回避できていた（httpOnly はページ内のJSを防ぐだけで、
- * 利用者自身が DevTools や curl で cookie を付けることは妨げない）。
- * 署名付きの値にして、サーバーが発行したものだけを受け付ける。
+ * 値は署名付きで、サーバーがパスワード照合に成功したときに発行したものだけを
+ * 有効とする。
  */
 export const LINK_UNLOCK_TTL_SECONDS = 3600
 
