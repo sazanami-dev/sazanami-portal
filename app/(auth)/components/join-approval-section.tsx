@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, Clock } from "lucide-react"
@@ -9,12 +8,15 @@ import { JoinPlatformActions } from "./join-platform-actions"
 // 状態の型定義
 type ApprovalStatus = "pending" | "approved"
 
+// NOTE: 以前は useState(initialStatus) で状態を持っていたが、更新関数を
+//       一度も呼ばないため、親が新しい値を渡しても初回マウント時の値のまま
+//       固定されていた（承認後も「承認待ちです」が残る）。props をそのまま
+//       描画に使う。
 export default function JoinApprovalSection({
-  initialStatus = "pending",
+  status = "pending",
 }: {
-  initialStatus?: ApprovalStatus
+  status?: ApprovalStatus
 } = {}) {
-  const [status, setStatus] = useState<ApprovalStatus>(initialStatus)
 
   return (
     // 画面全体の中央にカードを配置するレイアウト
