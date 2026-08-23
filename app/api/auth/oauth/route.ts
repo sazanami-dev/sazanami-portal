@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { isAllowedEmailDomain } from '@/lib/auth/email-domain'
 
 /**
  * リダイレクト先のオリジンを決める。
@@ -77,6 +78,13 @@ export async function GET(request: Request) {
     if (appUserErr) {
       console.error('[oauth] users select failed:', appUserErr.message)
       return redirectTo(origin, forwardedHost, '/error?error=db_error')
+    }
+
+    // 許可ドメイン外は新規に受け入れない。既に登録済みの利用者は
+    // ドメイン設定を後から変えても締め出されないよう通す。
+    if (!appUser && !isAllowedEmailDomain(userData.user.email)) {
+      await supabase.auth.signOut()
+      return redirectTo(origin, forwardedHost, '/signin?error=email_domain_not_allowed')
     }
 
     if (appUser) {

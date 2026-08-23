@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { isAllowedEmailDomain } from '@/lib/auth/email-domain'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { sendPendingApprovalNotification } from '@/lib/discord/notify'
 
@@ -40,6 +41,9 @@ export async function POST(request: Request) {
 
   if (!email || email !== (userData.user.email ?? '')) {
     return NextResponse.json({ error: 'email_mismatch' }, { status: 400 })
+  }
+  if (!isAllowedEmailDomain(email)) {
+    return NextResponse.json({ error: 'email_domain_not_allowed' }, { status: 403 })
   }
   if (!studentId) return NextResponse.json({ error: 'student_id_required' }, { status: 400 })
   if (!name || !nameKana) return NextResponse.json({ error: 'name_required' }, { status: 400 })
