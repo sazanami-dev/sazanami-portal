@@ -2,7 +2,12 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { supabaseServerUrl, supabaseCookieName } from '@/lib/supabase/url'
-import { JOIN_GATE_COOKIE, joinGateCookieOptions } from '@/lib/auth/join-gate'
+import {
+  JOIN_GATE_COOKIE,
+  joinGateCookieOptions,
+  issueJoinGateValue,
+  isValidJoinGateValue,
+} from '@/lib/auth/join-gate'
 
 /**
  * リダイレクト応答を作る。
@@ -117,7 +122,8 @@ export async function updateSession(request: NextRequest) {
 
   // 直近で「やり残しなし」と判定済み（かつ同一ユーザー）ならDBを一切引かない。
   // prefetch を含む大量の遷移で毎回3クエリが飛ぶのを防ぐ。
-  if (request.cookies.get(JOIN_GATE_COOKIE)?.value === userId) {
+  // 値は署名付きで、利用者が細工した cookie は検証に落ちてDB判定へ回る。
+  if (await isValidJoinGateValue(request.cookies.get(JOIN_GATE_COOKIE)?.value, userId)) {
     if (pathname === '/join') {
       return redirectWithSession(request, '/', supabaseResponse)
     }
@@ -171,12 +177,20 @@ export async function updateSession(request: NextRequest) {
 
   // やり残しなし → 次リクエスト以降はDBを引かないよう cookie を発行する
   // やり残しが無いのに /join に来たらトップへ
+  // 署名できない（JOIN_GATE_SECRET 未設定）場合は cookie を発行せず、
+  // 次回以降も毎回DBで判定する
+  const gateValue = await issueJoinGateValue(userId)
+
   if (pathname === '/join') {
     const redirectResponse = redirectWithSession(request, '/', supabaseResponse)
-    redirectResponse.cookies.set(JOIN_GATE_COOKIE, userId, joinGateCookieOptions())
+    if (gateValue) {
+      redirectResponse.cookies.set(JOIN_GATE_COOKIE, gateValue, joinGateCookieOptions())
+    }
     return redirectResponse
   }
 
-  supabaseResponse.cookies.set(JOIN_GATE_COOKIE, userId, joinGateCookieOptions())
+  if (gateValue) {
+    supabaseResponse.cookies.set(JOIN_GATE_COOKIE, gateValue, joinGateCookieOptions())
+  }
   return supabaseResponse
 }
