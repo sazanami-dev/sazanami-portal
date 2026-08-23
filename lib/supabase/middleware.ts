@@ -177,7 +177,7 @@ export async function updateSession(request: NextRequest) {
 
   // やり残しなし → 次リクエスト以降はDBを引かないよう cookie を発行する
   // やり残しが無いのに /join に来たらトップへ
-  // 署名できない（JOIN_GATE_SECRET 未設定）場合は cookie を発行せず、
+  // 署名できない（COOKIE_SIGNING_SECRET 未設定）場合は cookie を発行せず、
   // 次回以降も毎回DBで判定する
   const gateValue = await issueJoinGateValue(userId)
 

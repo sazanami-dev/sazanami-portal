@@ -1,6 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { getLinkByNamespaceSlug } from '@/lib/links/service'
+import { isLinkUnlocked, linkUnlockCookieName } from '@/lib/links/unlock-cookie'
 import PasswordForm from './password-form'
 
 type Props = { params: Promise<{ studentId: string; slug: string }> }
@@ -16,7 +17,10 @@ export default async function UserLinkPage({ params }: Props) {
   }
 
   const cookieStore = await cookies()
-  const verified = cookieStore.get(`lv_${link.id}`)?.value === '1'
+  const verified = await isLinkUnlocked(
+    cookieStore.get(linkUnlockCookieName(link.id))?.value,
+    link.id
+  )
   if (verified) {
     redirect(link.targetUrl)
   }
