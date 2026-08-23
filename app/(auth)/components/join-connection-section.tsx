@@ -190,6 +190,11 @@ export function JoinConnectionSection({
                 return (
                   <>
                     {avatarUrl ? (
+                      // アバターは Discord/GitHub/Google など任意のCDNから来る
+                      // ユーザー制御のURLで、next/image の remotePatterns に
+                      // 列挙しきれない（未登録ホストは描画に失敗する）。
+                      // 48px なので最適化の利得も薄いため <img> のままとする。
+                      // eslint-disable-next-line @next/next/no-img-element -- 外部CDNの任意ホスト
                       <img
                         src={avatarUrl}
                         alt=""
@@ -232,6 +237,11 @@ export function JoinConnectionSection({
                 return (
                   <>
                     {avatarUrl ? (
+                      // アバターは Discord/GitHub/Google など任意のCDNから来る
+                      // ユーザー制御のURLで、next/image の remotePatterns に
+                      // 列挙しきれない（未登録ホストは描画に失敗する）。
+                      // 48px なので最適化の利得も薄いため <img> のままとする。
+                      // eslint-disable-next-line @next/next/no-img-element -- 外部CDNの任意ホスト
                       <img
                         src={avatarUrl}
                         alt=""
