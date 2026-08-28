@@ -63,23 +63,17 @@ function getIdentityDisplay(identity: UserIdentity) {
 
 export function JoinConnectionSection({
   authUser,
-  canJoinOrg,
-  isDiscordJoined,
-  isGitHubJoined,
   userInfo,
   agreementInfo,
   onConfirm,
   onBack,
 }: {
   authUser: User
-  canJoinOrg: boolean
-  isDiscordJoined: boolean
-  isGitHubJoined: boolean
   /** モーダルに表示する登録情報。未指定時は authUser から最低限を構築。 */
   userInfo?: ConnectionUserInfo
   /** モーダルに表示する同意事項。 */
   agreementInfo?: ConnectionAgreementInfo
-  /** モーダル確認時のコールバック。未指定時は従来通り JoinApprovalSection に遷移するのみ。 */
+  /** モーダル確認時のコールバック。未指定なら JoinApprovalSection に遷移するのみ。 */
   onConfirm?: () => Promise<void> | void
   /** 前のステップへ戻る場合に指定 */
   onBack?: () => void
@@ -196,6 +190,11 @@ export function JoinConnectionSection({
                 return (
                   <>
                     {avatarUrl ? (
+                      // アバターは Discord/GitHub/Google など任意のCDNから来る
+                      // ユーザー制御のURLで、next/image の remotePatterns に
+                      // 列挙しきれない（未登録ホストは描画に失敗する）。
+                      // 48px なので最適化の利得も薄いため <img> のままとする。
+                      // eslint-disable-next-line @next/next/no-img-element -- 外部CDNの任意ホスト
                       <img
                         src={avatarUrl}
                         alt=""
@@ -238,6 +237,11 @@ export function JoinConnectionSection({
                 return (
                   <>
                     {avatarUrl ? (
+                      // アバターは Discord/GitHub/Google など任意のCDNから来る
+                      // ユーザー制御のURLで、next/image の remotePatterns に
+                      // 列挙しきれない（未登録ホストは描画に失敗する）。
+                      // 48px なので最適化の利得も薄いため <img> のままとする。
+                      // eslint-disable-next-line @next/next/no-img-element -- 外部CDNの任意ホスト
                       <img
                         src={avatarUrl}
                         alt=""

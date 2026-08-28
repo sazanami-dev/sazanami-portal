@@ -25,7 +25,17 @@ export default function PasswordForm({ linkId }: Props) {
     if (res.ok) {
       router.refresh()
     } else {
-      setError('パスワードが正しくありません')
+      if (res.status === 429) {
+        const retryAfter = Number(res.headers.get('Retry-After') ?? '0')
+        const minutes = Math.ceil(retryAfter / 60)
+        setError(
+          minutes > 0
+            ? `試行回数が上限に達しました。約${minutes}分後にもう一度お試しください`
+            : '試行回数が上限に達しました。しばらくしてからお試しください'
+        )
+      } else {
+        setError('パスワードが正しくありません')
+      }
       setLoading(false)
     }
   }

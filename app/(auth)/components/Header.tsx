@@ -1,20 +1,11 @@
-"use client";
-
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState } from 'react';
 
-import {LogoutButton} from '@/app/(auth)/components/signout-button'; 
+import {LogoutButton} from '@/app/(auth)/components/signout-button';
 
+// ロゴとログアウトボタンだけなのでフックは不要。LogoutButton 側が
+// "use client" を持つため、この Header 自体は Server Component でよい。
 const PortalHeader = () => {
-  const [isOpen, setIsOpen] = useState(false);
-
-
-  const navLinks = [
-    { href: '/portal', label: 'Dashboard' },
-    { href: '/portal/settings', label: 'Settings' },
-  ];
-
   return (
         <div className="fixed top-4 left-0 right-0 flex justify-center z-50 px-4">
           <header className="

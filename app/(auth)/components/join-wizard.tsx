@@ -86,19 +86,16 @@ function splitName(full: string): { last: string; first: string } {
   return { last: full ?? '', first: '' }
 }
 
-export function JoinWizard({
-  authUser,
-  isDiscordJoined,
-  isGitHubJoined,
-}: {
-  authUser: User
-  isDiscordJoined: boolean
-  isGitHubJoined: boolean
-}) {
+export function JoinWizard({ authUser }: { authUser: User }) {
   const [state, setState] = useState<WizardState>({ step: 'signup' })
   const [hydrated, setHydrated] = useState(false)
 
+  // sessionStorage はサーバー側に存在しないため、useState の遅延初期化で
+  // 読むと SSR の出力（常に signup）とクライアント初回描画がずれて
+  // ハイドレーションエラーになる。マウント後に一度だけ復元し、hydrated が
+  // 立つまで保存もしない、という意図的な実装。
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- ハイドレーション後の復元のため
     setState(loadState())
     setHydrated(true)
   }, [])
@@ -209,9 +206,6 @@ export function JoinWizard({
     return (
       <JoinConnectionSection
         authUser={authUser}
-        canJoinOrg={false}
-        isDiscordJoined={isDiscordJoined}
-        isGitHubJoined={isGitHubJoined}
         userInfo={userInfo}
         agreementInfo={{
           tosAgreed: state.agreementData?.tosAgreed ?? false,

@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useRef } from "react"
+
+import { errorMessage } from "@/lib/errors"
 import InputEditor from "../components/InputEditor"
 import MarkdownPreview from "../components/MarkdownPreview"
 import styles from "../ui.module.css"
@@ -9,9 +11,6 @@ import mdStyles from "../markdown.module.css"
 type ViewMode = "both" | "input" | "preview"
 
 export default function EditClient() {
-    if (!InputEditor || !MarkdownPreview) {
-        return <div style={{ padding: 24 }}>編集コンポーネントの読み込みに失敗しました。コンソールを確認してください。</div>
-    }
     const [text, setText] = useState<string>("# Hello Term\n\n会則の内容をここに入力してください")
     const [mode, setMode] = useState<ViewMode>("both")
 
@@ -34,14 +33,15 @@ export default function EditClient() {
                 credentials: 'same-origin',
             })
 
-            let j: any = null
+            type SaveResponse = { error?: string; detail?: string; text?: string; version?: number }
+            let j: SaveResponse | null = null
             try {
                 j = await res.json()
-            } catch (e) {
+            } catch {
                 try {
                     const txt = await res.text()
                     j = txt ? { text: txt } : null
-                } catch (_) {
+                } catch {
                     j = null
                 }
             }
@@ -54,9 +54,9 @@ export default function EditClient() {
             }
 
             alert(`会則を適用（保存）しました！ バージョン: ${j?.version ?? 'unknown'}`)
-        } catch (err: any) {
+        } catch (err) {
             console.error('保存に失敗しました:', err)
-            alert(`保存に失敗しました: ${err?.message ?? err}`)
+            alert(`保存に失敗しました: ${errorMessage(err)}`)
         }
     }
 

@@ -1,20 +1,18 @@
 "use client"
 
-import { useState } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { CheckCircle2, Clock } from "lucide-react"
 import { JoinPlatformActions } from "./join-platform-actions"
 
 // 状態の型定義
 type ApprovalStatus = "pending" | "approved"
 
+// 表示状態は親が制御する（このコンポーネントは状態を持たない）
 export default function JoinApprovalSection({
-  initialStatus = "pending",
+  status = "pending",
 }: {
-  initialStatus?: ApprovalStatus
+  status?: ApprovalStatus
 } = {}) {
-  const [status, setStatus] = useState<ApprovalStatus>(initialStatus)
 
   return (
     // 画面全体の中央にカードを配置するレイアウト

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { errorMessage } from '@/lib/errors'
 import { google } from 'googleapis'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 
@@ -67,8 +68,8 @@ export async function POST() {
       }
       pageToken = res.data.nextPageToken ?? undefined
     } while (pageToken)
-  } catch (e: any) {
-    console.error('[drive/bulk-revoke] permissions.list failed:', e?.message)
+  } catch (e) {
+    console.error('[drive/bulk-revoke] permissions.list failed:', errorMessage(e))
     return NextResponse.json({ error: 'list_failed' }, { status: 500 })
   }
 
@@ -87,8 +88,8 @@ export async function POST() {
         supportsAllDrives: true,
       })
       revokedEmails.push(email)
-    } catch (e: any) {
-      console.error('[drive/bulk-revoke] permissions.delete failed:', email, e?.message)
+    } catch (e) {
+      console.error('[drive/bulk-revoke] permissions.delete failed:', email, errorMessage(e))
       failed.push({ email })
     }
   }

@@ -1,4 +1,3 @@
-import { LogoutButton } from '@/app/(auth)/components/signout-button'
 import Header from '@/app/(auth)/components/Header'
 
 export default function JoinLayout({

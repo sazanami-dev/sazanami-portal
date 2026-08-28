@@ -1,12 +1,12 @@
 import { redirect } from 'next/navigation'
 
-import { createClient } from '@/lib/supabase/server'
+import { getAuthenticatedViewerId } from '@/lib/members/route-helpers'
 import CalendarClient from './calendar-client'
 
 export default async function CalendarOnlyPage() {
-	const supabase = await createClient()
-	const { data: { user } } = await supabase.auth.getUser()
-	if (!user) redirect('/signin')
+	// getUser() ではなく getClaims() ベースで認証確認（Auth往復を1回削減）
+	const userId = await getAuthenticatedViewerId()
+	if (!userId) redirect('/signin')
 
 	const googleCalendarId = process.env.GOOGLE_CALENDAR_ID ?? null
 

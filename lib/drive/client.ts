@@ -35,13 +35,23 @@ export function getDriveClient(): {
 // フォルダ解決（Drive API）
 // ==============================
 
+/**
+ * Drive API の q パラメータに埋め込む文字列をエスケープする。
+ *
+ * q は単一引用符で囲む構文で、バックスラッシュがエスケープ文字になるため、
+ * バックスラッシュを先に、引用符を後に処理する必要がある。
+ */
+export function escapeDriveQueryValue(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+}
+
 /** parent 直下から name のフォルダを探し、無ければ作成して folderId を返す */
 export async function findOrCreateFolder(
   drive: drive_v3.Drive,
   parentId: string,
   name: string
 ): Promise<string> {
-  const escaped = name.replace(/'/g, "\\'")
+  const escaped = escapeDriveQueryValue(name)
   const res = await drive.files.list({
     q: `mimeType='application/vnd.google-apps.folder' and name='${escaped}' and '${parentId}' in parents and trashed=false`,
     fields: 'files(id, name)',

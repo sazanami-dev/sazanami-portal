@@ -2,6 +2,14 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { isItSchoolEmail } from '@/lib/members/email'
 import type { AppRole } from '@/lib/members/permissions'
 
+/**
+ * 認可上「有効」とみなす users.status。
+ *
+ * middleware の join ゲートにも同じ判定があるが、あちらは UX 上のリダイレクトで
+ * あって認可の境界ではない。認可を実際に行うこの層で必ず検証する。
+ */
+const ACTIVE_STATUS = 'active'
+
 export type MemberSummaryRow = {
   id: string
   class_name: string | null
@@ -53,14 +61,16 @@ function mapFullRow(r: Record<string, unknown>): Omit<MemberFullRow, 'tos_agreed
   }
 }
 
+/** status が active でない利用者には role を与えない（＝未認可として扱う）。 */
 export async function getViewerRole(userId: string): Promise<AppRole | null> {
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('users')
-    .select('role')
+    .select('role, status')
     .eq('id', userId)
     .maybeSingle()
   if (error || !data) return null
+  if (data.status !== ACTIVE_STATUS) return null
   return data.role as AppRole
 }
 
@@ -71,12 +81,17 @@ export async function fetchMembersForViewer(viewerId: string): Promise<
   const admin = createAdminClient()
   const { data: viewer, error: ve } = await admin
     .from('users')
-    .select('role')
+    .select('role, status')
     .eq('id', viewerId)
     .maybeSingle()
 
   if (ve || !viewer) {
     return { ok: false, error: 'not_registered' }
+  }
+
+  // 全員分の個人情報を返す経路なので、ここでも status を確認する
+  if (viewer.status !== ACTIVE_STATUS) {
+    return { ok: false, error: 'forbidden' }
   }
 
   const viewerRole = viewer.role as AppRole
@@ -112,14 +127,23 @@ export async function fetchMembersForViewer(viewerId: string): Promise<
   }
 
   const userIds = sorted.map((r) => String(r.id))
-  const { data: agreementRows, error: agreementErr } = await admin
-    .from('user_agreements')
-    .select('user_id, agreement_type')
-    .in('user_id', userIds)
+  // agreement と identity は共に userIds にしか依存しないので並列に投げる
+  const [agreementRes, identityRes] = await Promise.all([
+    admin
+      .from('user_agreements')
+      .select('user_id, agreement_type')
+      .in('user_id', userIds),
+    admin
+      .from('user_identities')
+      .select('user_id, provider, username, is_server_joined')
+      .in('user_id', userIds),
+  ])
 
-  if (agreementErr) {
-    return { ok: false, error: agreementErr.message ?? 'agreement_fetch_failed' }
+  if (agreementRes.error) {
+    return { ok: false, error: agreementRes.error.message ?? 'agreement_fetch_failed' }
   }
+  const agreementRows = agreementRes.data
+  const identityRows = identityRes.data
 
   const agreementMap = new Map<string, { tos: boolean; tech: boolean }>()
   for (const row of agreementRows ?? []) {
@@ -129,11 +153,6 @@ export async function fetchMembersForViewer(viewerId: string): Promise<
     if (r.agreement_type === 'tech_train') prev.tech = true
     agreementMap.set(r.user_id, prev)
   }
-
-  const { data: identityRows } = await admin
-    .from('user_identities')
-    .select('user_id, provider, username, is_server_joined')
-    .in('user_id', userIds)
 
   const identityMap = new Map<string, { discord: IdentityInfo | null; github: IdentityInfo | null }>()
   for (const row of identityRows ?? []) {

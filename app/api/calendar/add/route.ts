@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { google, type calendar_v3 } from "googleapis";
+import { errorMessage } from '@/lib/errors'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+
+/** items[] 各件の処理結果（成功なら id、失敗なら error） */
+type ItemResult = {
+  clientId?: string
+  id?: string | null
+  htmlLink?: string | null
+  error?: string
+}
 
 type Item = {
   clientId?: string;
@@ -112,7 +121,7 @@ export async function POST(req: Request) {
           { status: 400 },
         );
 
-      const results: any[] = [];
+      const results: ItemResult[] = [];
       for (let i = 0; i < items.length; i++) {
         const it = items[i]
         const itStart = it.startDate;
@@ -137,16 +146,15 @@ export async function POST(req: Request) {
         const safeTitle = String(it.title ?? title ?? '').trim().slice(0, 200)
         const safeLocation = String(it.location ?? location ?? '').trim().slice(0, 200)
 
-        const color = String(it.colorId ?? (body as any)?.colorId ?? '')
+        const color = String(it.colorId ?? body?.colorId ?? '')
         if (color && !allowedColorIds.has(color)) {
           results.push({ error: `invalid colorId: ${color}` })
           continue
         }
 
         const summary = makeSummary(safeTitle || undefined, safeLocation || undefined);
-        const event: any = { summary, start, end };
+        const event: calendar_v3.Schema$Event = { summary, start, end };
         event.reminders = { useDefault: false };
-        event.conferenceData = {useDefault: false};
         if (color) event.colorId = color;
         if (safeLocation) event.location = safeLocation;
 
@@ -163,8 +171,8 @@ export async function POST(req: Request) {
             requestBody: event,
           });
           results.push({ clientId: it.clientId, id: res.data.id, htmlLink: res.data.htmlLink });
-        } catch (_e: any) {
-          const short = String(_e?.message ?? '不明なエラー').slice(0, 200)
+        } catch (_e) {
+          const short = errorMessage(_e).slice(0, 200)
           results.push({ clientId: it.clientId, error: `イベント作成に失敗しました (index ${i}): ${short}` })
         }
       }
@@ -193,7 +201,7 @@ export async function POST(req: Request) {
           .slice(0, 10),
     };
     const singleSummary = makeSummary(title ?? undefined, location ?? undefined);
-    const singleEvent: any = { summary: singleSummary, start, end };
+    const singleEvent: calendar_v3.Schema$Event = { summary: singleSummary, start, end };
     singleEvent.reminders = { useDefault: false };
     if (body?.colorId) singleEvent.colorId = String(body.colorId);
     if (location) singleEvent.location = location;
@@ -205,9 +213,9 @@ export async function POST(req: Request) {
       requestBody: singleEvent,
     });
     return NextResponse.json({ id: res.data.id, htmlLink: res.data.htmlLink });
-  } catch (err: any) {
+  } catch (err) {
     return NextResponse.json(
-      { error: err?.message ?? "unknown error" },
+      { error: errorMessage(err) },
       { status: 500 },
     );
   }

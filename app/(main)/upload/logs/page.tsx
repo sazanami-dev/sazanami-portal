@@ -1,22 +1,16 @@
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
-import { getViewerRole } from '@/lib/members/service'
 import { canManageUploadTemplates } from '@/lib/members/permissions'
+import { requireViewerRole } from '@/lib/members/route-helpers'
 import { listUploadLogs } from '@/lib/drive/upload-logs'
+import { Skeleton } from '@/components/ui/skeleton'
 import { LogsClient } from './logs-client'
 
 export default async function UploadLogsPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) redirect('/signin')
-
-  const role = await getViewerRole(user.id)
+  const { role, error } = await requireViewerRole()
+  if (error === 'unauthenticated') redirect('/signin')
   if (!role || !canManageUploadTemplates(role)) redirect('/')
-
-  const logs = await listUploadLogs()
 
   return (
     <div className="container mx-auto max-w-6xl space-y-6 p-6">
@@ -29,7 +23,24 @@ export default async function UploadLogsPage() {
           ← アップロード画面
         </Link>
       </div>
-      <LogsClient logs={logs} />
+      <Suspense fallback={<LogsSkeleton />}>
+        <LogsSection />
+      </Suspense>
+    </div>
+  )
+}
+
+async function LogsSection() {
+  const logs = await listUploadLogs()
+  return <LogsClient logs={logs} />
+}
+
+function LogsSkeleton() {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <Skeleton key={i} className="h-12 w-full" />
+      ))}
     </div>
   )
 }

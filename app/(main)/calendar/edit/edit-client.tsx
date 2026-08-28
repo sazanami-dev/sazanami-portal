@@ -47,7 +47,7 @@ export default function CalendarClient() {
     function generateId() {
         try {
             if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
-        } catch (_) { }
+        } catch { }
         return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
     }
 
@@ -98,7 +98,7 @@ export default function CalendarClient() {
             let data: ApiResponse | null = null
             try {
                 data = await res.json() as ApiResponse
-            } catch (_) { }
+            } catch { }
 
             if (res.status === 401) {
                 window.location.href = '/signin'
@@ -119,8 +119,8 @@ export default function CalendarClient() {
                 const errors = data.results.filter((r) => r && r.error)
 
                 const successClientIds = data.results
-                    .filter((r) => r && r.clientId && r.id)
-                    .map((r) => (r as any).clientId as string)
+                    .filter((r): r is NonNullable<typeof r> => Boolean(r && r.clientId && r.id))
+                    .map((r) => r.clientId as string)
                 if (successClientIds.length > 0) {
                     setEvents(prev => prev.filter(e => !successClientIds.includes(e.id)))
                 }

@@ -143,8 +143,6 @@ export default async function JoinPage() {
       {state === 'unregistered' && (
         <JoinWizard
           authUser={authUser}
-          isDiscordJoined={isDiscordServerJoined}
-          isGitHubJoined={isGitHubOrgJoined}
         />
       )}
 
@@ -173,9 +171,9 @@ export default async function JoinPage() {
             {!allAgreed ? (
               <JoinAgreementSection tosAgreed={tosAgreed} techTrainAgreed={techTrainAgreed} />
             ) : !allConnected ? (
-              <JoinApprovalSection initialStatus="approved" />
+              <JoinApprovalSection status="approved" />
             ) : (
-              <JoinCompletedSection authUser={authUser} appUser={appUser} />
+              <JoinCompletedSection />
             )}
           </>
         )}
