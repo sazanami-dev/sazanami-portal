@@ -11,7 +11,10 @@ import {
   timestamp,
   jsonb,
   unique,
+  index,
+  check,
 } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 
 // ==============================
 // enum 定義
@@ -23,6 +26,26 @@ export const userRoleEnum = pgEnum('user_role', [
   'manager',
   'member',
   'guest',
+])
+
+export const announcementStatusEnum = pgEnum('announcement_status', [
+  'draft',
+  'published',
+  'archived',
+])
+
+export const announcementCategoryEnum = pgEnum('announcement_category', [
+  'info',
+  'internal_event',
+  'external_event',
+  'system',
+])
+
+export const discordNotificationStatusEnum = pgEnum('discord_notification_status', [
+  'not_sent',
+  'pending',
+  'sent',
+  'failed',
 ])
 
 export const userStatusEnum = pgEnum('user_status', [
@@ -281,3 +304,52 @@ export const uploadLogs = pgTable('upload_logs', {
     .defaultNow(),
   completedAt: timestamp('completed_at', { withTimezone: true }),
 })
+
+// ==============================
+// announcements
+// ==============================
+
+export const announcements = pgTable(
+  'announcements',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    title: varchar('title', { length: 255 }).notNull(),
+    content: text('content').notNull(), // Markdown
+
+    status: announcementStatusEnum('status').notNull().default('draft'),
+    category: announcementCategoryEnum('category').notNull().default('info'),
+
+    isImportant: boolean('is_important').notNull().default(false),
+    isPinned: boolean('is_pinned').notNull().default(false),
+
+    publishAt: timestamp('publish_at', { withTimezone: true }).notNull().defaultNow(),
+
+    discordChannelId: varchar('discord_channel_id', { length: 64 }),
+    discordMentionEveryone: boolean('discord_mention_everyone').notNull().default(false),
+    discordMessageId: varchar('discord_message_id', { length: 64 }),
+    discordNotificationStatus: discordNotificationStatusEnum('discord_notification_status')
+      .notNull()
+      .default('not_sent'),
+    discordNotifiedAt: timestamp('discord_notified_at', { withTimezone: true }),
+    discordNotificationError: text('discord_notification_error'),
+
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (table) => ({
+    publishListIdx: index('announcements_publish_list_idx').on(
+      table.isPinned,
+      table.publishAt
+    ),
+    statusIdx: index('announcements_status_idx').on(table.status),
+    discordMessageConsistency: check(
+      'discord_message_consistency',
+      sql`${table.discordMessageId} IS NULL OR ${table.discordChannelId} IS NOT NULL`
+    ),
+  })
+)
