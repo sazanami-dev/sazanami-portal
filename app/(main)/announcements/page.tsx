@@ -1,5 +1,5 @@
 import React from 'react'
-import { AnnouncementList } from '@/components/announcements/announcement-list'
+import { AnnouncementList } from '@/app/(main)/announcements/components/announcement-list'
 
 export default function AnnouncementsPage() {
   return (

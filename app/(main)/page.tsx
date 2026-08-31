@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
-import { ProfileCard } from '@/components/dashboard/profile-card'
-import { AnnouncementsSection } from '@/components/dashboard/announcements-section'
-import { UpcomingEventsSection } from '@/components/dashboard/upcoming-events-section'
+import { ProfileCard } from '@/app/(main)/components/dashboard/profile-card'
+import { AnnouncementsSection } from '@/app/(main)/components/dashboard/announcements-section'
+import { UpcomingEventsSection } from '@/app/(main)/components/dashboard/upcoming-events-section'
 
 export default async function Home() {
   const supabase = await createClient()
