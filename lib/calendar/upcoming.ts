@@ -20,7 +20,8 @@ export type UpcomingEvent = {
   end: string | null
   allDay: boolean
   location: string | null
-  description: string | null
+  /** Google カレンダーの event colorId（'1'〜'11'）。未設定なら null */
+  colorId: string | null
   htmlLink: string | null
 }
 
@@ -44,7 +45,7 @@ type CalendarEventItem = {
   id?: string | null
   summary?: string | null
   location?: string | null
-  description?: string | null
+  colorId?: string | null
   htmlLink?: string | null
   start?: { date?: string | null; dateTime?: string | null } | null
   end?: { date?: string | null; dateTime?: string | null } | null
@@ -66,7 +67,7 @@ function toUpcomingEvent(item: CalendarEventItem, index: number): UpcomingEvent 
     end: item.end?.dateTime ?? item.end?.date ?? null,
     allDay: !item.start?.dateTime,
     location,
-    description: item.description?.trim() || null,
+    colorId: item.colorId ?? null,
     htmlLink: item.htmlLink ?? null,
   }
 }
@@ -78,16 +79,18 @@ function toUpcomingEvent(item: CalendarEventItem, index: number): UpcomingEvent 
  * 一時的なAPI障害の結果が再検証間隔のあいだ居座らずに済む。
  */
 const fetchUpcomingEvents = unstable_cache(
-  async (limit: number): Promise<UpcomingEvent[]> => {
+  // calendarId は使うだけでなくキャッシュキーにも効かせる。
+  // 引数はキーの一部になるため、参照先カレンダーを変えれば別エントリになる。
+  async (calendarId: string, limit: number): Promise<UpcomingEvent[]> => {
     const calendar = getCalendarClient()
     const res = await calendar.events.list({
-      calendarId: getDefaultCalendarId(),
+      calendarId,
       timeMin: new Date().toISOString(),
       // 繰り返し予定を各回に展開する。orderBy: 'startTime' の前提条件でもある
       singleEvents: true,
       orderBy: 'startTime',
       maxResults: limit,
-      fields: 'items(id,summary,location,description,htmlLink,start,end)',
+      fields: 'items(id,summary,location,colorId,htmlLink,start,end)',
     })
 
     return (res.data.items ?? [])
@@ -108,7 +111,8 @@ export async function getUpcomingEvents(
   limit: number = UPCOMING_EVENTS_LIMIT
 ): Promise<UpcomingEventsResult> {
   try {
-    return { ok: true, events: await fetchUpcomingEvents(limit) }
+    const events = await fetchUpcomingEvents(getDefaultCalendarId(), limit)
+    return { ok: true, events }
   } catch (error) {
     console.error('[upcoming-events] 取得に失敗しました:', error)
     return { ok: false, error: errorMessage(error) }
