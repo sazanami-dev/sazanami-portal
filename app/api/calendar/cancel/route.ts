@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { google } from "googleapis";
 import { errorMessage } from '@/lib/errors'
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { UPCOMING_EVENTS_TAG } from '@/lib/calendar/upcoming'
 
 type RequestBody = {
   date?: string;
@@ -116,6 +118,9 @@ export async function POST(req: Request) {
         results.push({ error: `イベント削除に失敗しました: ${short}` });
       }
     }
+
+    // 1件でも削除できたらダッシュボードの「今後の活動」を作り直させる
+    if (results.some((r) => r.id)) revalidateTag(UPCOMING_EVENTS_TAG, { expire: 0 });
 
     return NextResponse.json({ results });
   } catch {

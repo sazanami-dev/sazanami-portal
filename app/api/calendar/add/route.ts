@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { google, type calendar_v3 } from "googleapis";
 import { errorMessage } from '@/lib/errors'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { UPCOMING_EVENTS_TAG } from '@/lib/calendar/upcoming'
 
 /** items[] 各件の処理結果（成功なら id、失敗なら error） */
 type ItemResult = {
@@ -177,6 +179,9 @@ export async function POST(req: Request) {
         }
       }
 
+      // 1件でも登録できたらダッシュボードの「今後の活動」を作り直させる
+      if (results.some((r) => r.id)) revalidateTag(UPCOMING_EVENTS_TAG, { expire: 0 });
+
       return NextResponse.json({ results });
     }
 
@@ -212,6 +217,9 @@ export async function POST(req: Request) {
       calendarId: calId,
       requestBody: singleEvent,
     });
+
+    revalidateTag(UPCOMING_EVENTS_TAG, { expire: 0 });
+
     return NextResponse.json({ id: res.data.id, htmlLink: res.data.htmlLink });
   } catch (err) {
     return NextResponse.json(
