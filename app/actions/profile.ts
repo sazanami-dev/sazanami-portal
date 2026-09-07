@@ -151,12 +151,10 @@ export async function uploadAvatar(formData: FormData) {
 }
 
 export async function getPublicMemberProfile(userId: string): Promise<MemberPublicProfile | null> {
-  console.log('[getPublicMemberProfile] called with userId:', userId)
   const supabase = await createClient()
   const { data: userData, error: userError } = await supabase.auth.getUser()
 
   if (userError || !userData?.user) {
-    console.log('[getPublicMemberProfile] auth check failed:', userError?.message)
     return null
   }
 
@@ -173,10 +171,7 @@ export async function getPublicMemberProfile(userId: string): Promise<MemberPubl
     .eq('id', userData.user.id)
     .single()
 
-  console.log('[getPublicMemberProfile] viewer:', viewer)
-
   if (!viewer || viewer.status !== 'active' || viewer.role === 'guest') {
-    console.log('[getPublicMemberProfile] viewer not authorized')
     return null
   }
 

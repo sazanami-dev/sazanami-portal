@@ -607,7 +607,6 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  console.log('Clicked summary row card name:', r.id)
                   setSelectedProfileUserId(r.id)
                 }}
                 className="relative z-10 text-left font-medium text-foreground hover:text-primary hover:underline transition-colors focus:outline-hidden"
@@ -641,7 +640,6 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
                       onClick={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
-                        console.log('Clicked summary row name:', r.id)
                         setSelectedProfileUserId(r.id)
                       }}
                       className="relative z-10 text-left font-medium text-foreground hover:text-primary hover:underline transition-colors focus:outline-hidden"
@@ -871,7 +869,6 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
                     onClick={(e) => {
                       e.preventDefault()
                       e.stopPropagation()
-                      console.log('Clicked full row card name:', r.id)
                       setSelectedProfileUserId(r.id)
                     }}
                     className="relative z-10 text-left font-semibold text-foreground hover:text-primary hover:underline transition-colors focus:outline-hidden"
@@ -985,7 +982,6 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
                     onClick={(e) => {
                       e.preventDefault()
                       e.stopPropagation()
-                      console.log('Clicked full row name:', r.id)
                       setSelectedProfileUserId(r.id)
                     }}
                     className="relative z-10 text-left font-medium text-foreground hover:text-primary hover:underline transition-colors focus:outline-hidden"

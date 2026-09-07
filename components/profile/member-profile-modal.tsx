@@ -17,12 +17,10 @@ function ProfileModalDialog({ userId, onClose }: { userId: string; onClose: () =
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    console.log('ProfileModalDialog useEffect running for userId:', userId)
     let isMounted = true
 
     getPublicMemberProfile(userId)
       .then((data) => {
-        console.log('ProfileModalDialog fetch result:', data)
         if (!isMounted) return
         if (!data) {
           setError('プロフィールを取得できませんでした。')
@@ -31,7 +29,6 @@ function ProfileModalDialog({ userId, onClose }: { userId: string; onClose: () =
         }
       })
       .catch((err) => {
-        console.log('ProfileModalDialog fetch error:', err)
         if (!isMounted) return
         console.error('Failed to fetch profile:', err)
         setError('プロフィールの取得中にエラーが発生しました。')
@@ -41,7 +38,6 @@ function ProfileModalDialog({ userId, onClose }: { userId: string; onClose: () =
       })
 
     return () => {
-      console.log('ProfileModalDialog unmounting for userId:', userId)
       isMounted = false
     }
   }, [userId])
@@ -157,7 +153,6 @@ function ProfileModalDialog({ userId, onClose }: { userId: string; onClose: () =
 }
 
 export function MemberProfileModal({ userId, onClose }: MemberProfileModalProps) {
-  console.log('MemberProfileModal render with userId:', userId)
   if (!userId) return null
   return <ProfileModalDialog key={userId} userId={userId} onClose={onClose} />
 }
