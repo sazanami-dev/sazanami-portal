@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { getPublicMemberProfile, MemberPublicProfile } from '@/app/actions/profile'
 import { ProfileMarkdownView } from '@/components/profile/profile-markdown-view'
 import { User, X, Loader2 } from 'lucide-react'
@@ -62,7 +63,9 @@ function ProfileModalDialog({ userId, onClose }: { userId: string; onClose: () =
     }
   }, [onClose])
 
-  return (
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in duration-200"
       onClick={(e) => {
@@ -148,7 +151,8 @@ function ProfileModalDialog({ userId, onClose }: { userId: string; onClose: () =
           ) : null}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
