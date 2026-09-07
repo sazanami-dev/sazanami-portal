@@ -29,6 +29,7 @@
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-easy-crop": "^6.2.3",
     "react-markdown": "^10.1.0",
     "rehype-raw": "^7.0.0",
     "remark-breaks": "^4.0.0",
