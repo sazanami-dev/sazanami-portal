@@ -4,10 +4,6 @@ import React from 'react'
 import { UserProfileData } from '@/app/actions/profile'
 import { User } from 'lucide-react'
 import Link from 'next/link'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import remarkBreaks from 'remark-breaks'
-import mdStyles from '@/app/(main)/profile/edit/profile-markdown.module.css'
 
 type ProfileCardClientProps = {
   userProfile: UserProfileData
@@ -15,7 +11,6 @@ type ProfileCardClientProps = {
 }
 
 export function ProfileCardClient({ userProfile, avatarSignedUrl }: ProfileCardClientProps) {
-  const bio = userProfile.user_profiles?.bio || ''
 
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border bg-card p-6 text-card-foreground shadow backdrop-blur-md">
@@ -36,23 +31,6 @@ export function ProfileCardClient({ userProfile, avatarSignedUrl }: ProfileCardC
         {userProfile.className || 'クラス未設定'} - {userProfile.studentId || '学籍番号未設定'}
       </p>
 
-      <div className="mt-4 w-full">
-        {bio ? (
-          <div className={`line-clamp-2 text-sm text-muted-foreground max-w-none ${mdStyles.profileMdPreview}`}>
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkBreaks]}
-              components={{
-                // Prevent links from navigating out on the dashboard preview
-                a: ({ ...props }) => <span className="text-primary underline" {...props} />
-              }}
-            >
-              {bio}
-            </ReactMarkdown>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground italic">自己紹介が設定されていません</p>
-        )}
-      </div>
 
       <Link
         href="/profile/edit"
