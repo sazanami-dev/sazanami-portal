@@ -16,6 +16,7 @@ import {
   type AppRole,
 } from '@/lib/members/permissions'
 import type { IdentityInfo, MemberFullRow, MemberSummaryRow } from '@/lib/members/service'
+import { MemberProfileModal } from '@/components/profile/member-profile-modal'
 
 
 const ALL_ROLES: AppRole[] = [
@@ -161,6 +162,7 @@ type AnnualGraduateRow = Pick<
 export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }: Props) {
   const router = useRouter()
   const [busy, setBusy] = useState<string | null>(null)
+  const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [fullSortKey, setFullSortKey] = useState<FullSortKey>('class')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
@@ -600,7 +602,18 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
         <div className="flex flex-col gap-2 sm:hidden">
           {summaryRows.map((r) => (
             <div key={r.id} className="flex items-center justify-between rounded-lg border bg-card px-4 py-3 shadow-sm">
-              <span className="font-medium">{r.name}</span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  console.log('Clicked summary row card name:', r.id)
+                  setSelectedProfileUserId(r.id)
+                }}
+                className="relative z-10 text-left font-medium text-foreground hover:text-primary hover:underline transition-colors focus:outline-hidden"
+              >
+                {r.name}
+              </button>
               <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">{r.class_name ?? '—'}</span>
             </div>
           ))}
@@ -622,7 +635,20 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
               {summaryRows.map((r) => (
                 <tr key={r.id} className="transition-colors hover:bg-muted/30">
                   <td className="px-4 py-2.5 font-medium text-muted-foreground">{r.class_name ?? '—'}</td>
-                  <td className="px-4 py-2.5">{r.name}</td>
+                  <td className="px-4 py-2.5">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        console.log('Clicked summary row name:', r.id)
+                        setSelectedProfileUserId(r.id)
+                      }}
+                      className="relative z-10 text-left font-medium text-foreground hover:text-primary hover:underline transition-colors focus:outline-hidden"
+                    >
+                      {r.name}
+                    </button>
+                  </td>
                 </tr>
               ))}
               {summaryRows.length === 0 && (
@@ -631,6 +657,11 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
             </tbody>
           </table>
         </div>
+
+        <MemberProfileModal
+          userId={selectedProfileUserId}
+          onClose={() => setSelectedProfileUserId(null)}
+        />
       </div>
     )
   }
@@ -835,7 +866,18 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
             <div key={r.id} className="rounded-lg border bg-card p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-semibold">{r.name}</p>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      console.log('Clicked full row card name:', r.id)
+                      setSelectedProfileUserId(r.id)
+                    }}
+                    className="relative z-10 text-left font-semibold text-foreground hover:text-primary hover:underline transition-colors focus:outline-hidden"
+                  >
+                    {r.name}
+                  </button>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {[r.class_name, r.attendance_number != null ? String(r.attendance_number).padStart(2, '0') : null].filter(Boolean).join(' · ') || '—'}
                   </p>
@@ -937,7 +979,20 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
           <tbody className="divide-y">
             {visibleFullRows.map((r) => (
               <tr key={r.id} className="transition-colors hover:bg-muted/30">
-                <td className="px-2 py-1.5 font-medium">{r.name}</td>
+                <td className="px-2 py-1.5 font-medium">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      console.log('Clicked full row name:', r.id)
+                      setSelectedProfileUserId(r.id)
+                    }}
+                    className="relative z-10 text-left font-medium text-foreground hover:text-primary hover:underline transition-colors focus:outline-hidden"
+                  >
+                    {r.name}
+                  </button>
+                </td>
                 <td className="hidden px-2 py-1.5 text-xs text-muted-foreground 2xl:table-cell">{r.name_kana}</td>
                 <td className="hidden px-2 py-1.5 text-xs text-muted-foreground xl:table-cell">{r.student_id ?? '—'}</td>
                 <td className="hidden max-w-[160px] truncate px-2 py-1.5 text-xs text-muted-foreground xl:table-cell">{r.email}</td>
@@ -1659,6 +1714,11 @@ export function MembersClient({ viewerRole, viewerId, members, driveGrantRole }:
           </div>
         </div>
       )}
+
+      <MemberProfileModal
+        userId={selectedProfileUserId}
+        onClose={() => setSelectedProfileUserId(null)}
+      />
     </div>
   )
 }

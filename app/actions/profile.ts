@@ -14,6 +14,15 @@ export type UserProfileData = {
   } | null
 }
 
+export type MemberPublicProfile = {
+  id: string
+  name: string
+  nameKana: string | null
+  className: string | null
+  bio: string | null
+  avatarSignedUrl: string | null
+}
+
 export async function getUserProfile(): Promise<UserProfileData | null> {
   const supabase = await createClient()
   const { data: userData, error: userError } = await supabase.auth.getUser()
@@ -139,4 +148,65 @@ export async function uploadAvatar(formData: FormData) {
   }
 
   return { path: data.path }
+}
+
+export async function getPublicMemberProfile(userId: string): Promise<MemberPublicProfile | null> {
+  console.log('[getPublicMemberProfile] called with userId:', userId)
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+
+  if (userError || !userData?.user) {
+    console.log('[getPublicMemberProfile] auth check failed:', userError?.message)
+    return null
+  }
+
+  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
+  const serviceClient = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  // Verify viewer is active member
+  const { data: viewer } = await serviceClient
+    .from('users')
+    .select('role, status')
+    .eq('id', userData.user.id)
+    .single()
+
+  console.log('[getPublicMemberProfile] viewer:', viewer)
+
+  if (!viewer || viewer.status !== 'active' || viewer.role === 'guest') {
+    console.log('[getPublicMemberProfile] viewer not authorized')
+    return null
+  }
+
+  // Fetch target user profile
+  const { data: targetUser, error } = await serviceClient
+    .from('users')
+    .select('id, name, name_kana, class_name, user_profiles(bio, avatar_url)')
+    .eq('id', userId)
+    .single()
+
+  if (error || !targetUser) {
+    console.error('[getPublicMemberProfile] error:', error)
+    return null
+  }
+
+  const profile = Array.isArray(targetUser.user_profiles)
+    ? targetUser.user_profiles[0]
+    : targetUser.user_profiles
+
+  let avatarSignedUrl: string | null = null
+  if (profile?.avatar_url) {
+    avatarSignedUrl = await getAvatarSignedUrl(profile.avatar_url)
+  }
+
+  return {
+    id: targetUser.id,
+    name: targetUser.name,
+    nameKana: targetUser.name_kana,
+    className: targetUser.class_name,
+    bio: profile?.bio || null,
+    avatarSignedUrl,
+  }
 }
