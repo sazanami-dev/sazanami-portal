@@ -48,17 +48,10 @@ export function ProfileCardClient({ userProfile, avatarSignedUrl }: ProfileCardC
         {userProfile.className || 'クラス未設定'} - {userProfile.studentId || '学籍番号未設定'}
       </p>
 
-      <div className="mt-6 flex w-full gap-2">
-        <button
-          type="button"
-          onClick={() => setIsProfileModalOpen(true)}
-          className="flex-1 rounded-md border bg-background px-3 py-2 text-center text-sm font-medium hover:bg-muted transition-colors focus:outline-hidden cursor-pointer"
-        >
-          プロフィール確認
-        </button>
+      <div className="mt-6 w-full">
         <Link
           href="/profile/edit"
-          className="flex-1 rounded-md bg-secondary px-3 py-2 text-center text-sm font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
+          className="block w-full rounded-md bg-secondary px-3 py-2 text-center text-sm font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
         >
           プロフィール編集
         </Link>
