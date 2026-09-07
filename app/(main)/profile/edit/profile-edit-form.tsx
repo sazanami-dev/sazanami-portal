@@ -7,9 +7,8 @@ import Cropper, { Point, Area } from 'react-easy-crop'
 import { useRouter } from 'next/navigation'
 import { User, ArrowLeft, Upload, X, Eye, Edit3 } from 'lucide-react'
 import Link from 'next/link'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import remarkBreaks from 'remark-breaks'
+import MarkdownPreview from '@/app/(main)/term/components/MarkdownPreview'
+import mdStyles from './profile-markdown.module.css'
 
 type ProfileEditFormProps = {
   userProfile: UserProfileData
@@ -310,13 +309,10 @@ export function ProfileEditForm({ userProfile, avatarSignedUrl }: ProfileEditFor
             {previewMode ? (
               <div className="min-h-[300px] rounded-md border bg-muted/30 px-4 py-3">
                 {bio ? (
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkBreaks]}
-                    >
-                      {bio}
-                    </ReactMarkdown>
-                  </div>
+                  <MarkdownPreview
+                    text={bio}
+                    className={mdStyles.profileMdPreview}
+                  />
                 ) : (
                   <p className="text-sm text-muted-foreground italic">
                     自己紹介が入力されていません

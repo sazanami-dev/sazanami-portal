@@ -7,6 +7,7 @@ import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
+import mdStyles from '@/app/(main)/profile/edit/profile-markdown.module.css'
 
 type ProfileCardClientProps = {
   userProfile: UserProfileData
@@ -37,7 +38,7 @@ export function ProfileCardClient({ userProfile, avatarSignedUrl }: ProfileCardC
 
       <div className="mt-4 w-full">
         {bio ? (
-          <div className="line-clamp-2 text-sm text-muted-foreground prose dark:prose-invert prose-sm max-w-none">
+          <div className={`line-clamp-2 text-sm text-muted-foreground max-w-none ${mdStyles.profileMdPreview}`}>
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkBreaks]}
               components={{
