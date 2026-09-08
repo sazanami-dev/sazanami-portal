@@ -42,7 +42,7 @@ async function fetchUpcomingEventsFromGoogle(): Promise<UpcomingEvent[]> {
     const end = item.end?.dateTime || item.end?.date || '';
     
     return {
-      id: item.id || Math.random().toString(),
+      id: item.id || crypto.randomUUID(),
       title: item.summary || '予定',
       start,
       end,
