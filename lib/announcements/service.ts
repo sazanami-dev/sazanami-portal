@@ -1,3 +1,5 @@
+import { revalidateTag, unstable_cache } from 'next/cache'
+
 import { createAdminClient } from '@/lib/supabase/server'
 import type {
   Announcement,
@@ -154,13 +156,25 @@ export function listDraftAnnouncements(
   return listAnnouncements({ ...params, statuses: ['draft'], includeScheduled: true })
 }
 
-/** ダッシュボードに表示するお知らせ。一般ユーザー向けの条件で先頭 N 件 */
-export async function getDashboardAnnouncements(): Promise<Announcement[]> {
-  const result = await listPublishedAnnouncements({
-    page: 1,
-    pageSize: DASHBOARD_ANNOUNCEMENTS_LIMIT,
-  })
-  return result.items
+/**
+ * ダッシュボードに表示するお知らせ。一般ユーザー向けの条件で先頭 N 件。
+ * 予約投稿が公開時刻に到達したら自動で現れるよう、時間ベースの再検証も併用する。
+ */
+export const getDashboardAnnouncements = unstable_cache(
+  async (): Promise<Announcement[]> => {
+    const result = await listPublishedAnnouncements({
+      page: 1,
+      pageSize: DASHBOARD_ANNOUNCEMENTS_LIMIT,
+    })
+    return result.items
+  },
+  ['dashboard-announcements'],
+  { tags: [ANNOUNCEMENTS_TAG], revalidate: 60 }
+)
+
+/** お知らせを更新したときにダッシュボードのキャッシュを破棄する */
+export function revalidateAnnouncements(): void {
+  revalidateTag(ANNOUNCEMENTS_TAG, { expire: 0 })
 }
 
 /**
