@@ -1,13 +1,23 @@
 import { NextResponse } from "next/server";
-import { createClient } from "../../../../lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
+import { requireViewerRole } from "@/lib/members/route-helpers";
 
 export async function GET() {
+  const ctx = await requireViewerRole();
+
+  if (ctx.error === "unauthenticated") {
+    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  }
+
+  // 未登録ユーザーにも会則は閲覧可能とする（join フロー中の参照用）
+  // ただし認証済みであることは必須。
+
   try {
-    const supabase = await createClient();
+    const admin = createAdminClient();
 
     //最新バージョンを優先、同じバージョンが複数ある場合は
     //更新日時の新しいものを優先して会則データを取得
-    const { data, error } = await supabase
+    const { data, error } = await admin
       .from("terms")
       .select("content,version,updated_at")
       .order("version", { ascending: false })
@@ -22,25 +32,9 @@ export async function GET() {
     const content = data?.content ?? null;
     const version = data?.version ?? null;
     const updated_at = data?.updated_at ?? null;
-    
-    let isAuthorized = false;
-    try {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      const userId = authData?.user?.id;
 
-      if (userId && !authError) {
-        const { data: appUser } = await supabase
-          .from("users")
-          .select("role")
-          .eq("id", userId)
-          .maybeSingle();
-
-        // 編集ボタン許可: admin または developer ロールを許可
-        isAuthorized = appUser?.role === "admin" || appUser?.role === "developer";
-      }
-    } catch (e) {
-      console.error("ユーザー情報の取得に失敗:", e);
-    }
+    // 編集ボタン許可: admin または developer ロールを許可
+    const isAuthorized = ctx.role === "admin" || ctx.role === "developer";
 
     return NextResponse.json({ content, version, updated_at, isAuthorized });
     
