@@ -1,19 +1,25 @@
 import React from 'react'
+import { getUserProfile, getAvatarSignedUrl } from '@/app/actions/profile'
+import { ProfileCardClient } from './profile-card-client'
 
-export function ProfileCard() {
-  return (
-    <div className="flex flex-col items-center justify-center rounded-xl border bg-card p-6 text-card-foreground shadow backdrop-blur-md">
-      <div className="h-24 w-24 rounded-full bg-muted" />
-      <h3 className="mt-4 text-xl font-semibold">Name Placeholder</h3>
-      <p className="text-sm text-muted-foreground">Class - ID</p>
-      <div className="mt-4 w-full">
-        <p className="line-clamp-2 text-sm text-muted-foreground">
-          Bio preview...
-        </p>
+export async function ProfileCard() {
+  const userProfile = await getUserProfile()
+  
+  if (!userProfile) {
+    // If no profile is found or not logged in, we could return a skeleton or null
+    return (
+      <div className="flex flex-col items-center justify-center rounded-xl border bg-card p-6 text-card-foreground shadow backdrop-blur-md">
+        <p className="text-sm text-muted-foreground">プロフィール情報が取得できません</p>
       </div>
-      <button className="mt-6 w-full rounded-md bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80">
-        プロフィール編集
-      </button>
-    </div>
+    )
+  }
+
+  const avatarSignedUrl = await getAvatarSignedUrl(userProfile.user_profiles?.avatar_url || null)
+
+  return (
+    <ProfileCardClient 
+      userProfile={userProfile} 
+      avatarSignedUrl={avatarSignedUrl} 
+    />
   )
 }
