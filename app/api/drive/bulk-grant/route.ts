@@ -24,11 +24,11 @@ export async function POST() {
     return NextResponse.json({ error: 'server_config_missing' }, { status: 500 })
   }
 
-  const ALLOWED_ROLES = ['admin', 'developer', 'manager', 'member']
+  const TARGET_ROLE = process.env.GOOGLE_DRIVE_GRANT_ROLE ?? 'member'
   const { data: targets, error: dbErr } = await admin
     .from('users')
     .select('email')
-    .in('role', ALLOWED_ROLES)
+    .eq('role', TARGET_ROLE)
     .eq('status', 'active')
 
   if (dbErr) {
