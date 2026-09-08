@@ -19,11 +19,14 @@ const dateLabelFormatter = new Intl.DateTimeFormat('ja-JP', {
   weekday: 'short',
 })
 
+// hourCycle は 'h23' を明示する。hour12: false だけだと環境によって
+// h24 が選ばれ、深夜0時が 24:00 と表示されることがある。
+// なお hour12 を併記すると hourCycle が上書きされるため、指定しない。
 const timeLabelFormatter = new Intl.DateTimeFormat('ja-JP', {
   timeZone: TIME_ZONE,
   hour: '2-digit',
   minute: '2-digit',
-  hour12: false,
+  hourCycle: 'h23',
 })
 
 /** JST での暦日 'YYYY-MM-DD' を返す */
