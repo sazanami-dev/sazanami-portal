@@ -5,7 +5,7 @@ export function UpcomingEventsSection() {
   return (
     <div className="flex flex-col rounded-xl border bg-card p-6 text-card-foreground shadow">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-bold tracking-tight">今後の活動</h2>
+        <h2 className="text-xl font-bold">今後の活動</h2>
         <Link href="/calendar" className="text-sm font-medium text-primary hover:underline">
           カレンダーで見る
         </Link>
