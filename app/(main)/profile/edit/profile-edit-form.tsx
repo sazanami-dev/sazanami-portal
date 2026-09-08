@@ -108,11 +108,8 @@ export function ProfileEditForm({ userProfile, avatarSignedUrl }: ProfileEditFor
       if (imageSrc && croppedAreaPixels) {
         const croppedImageBlob = await getCroppedImg(imageSrc, croppedAreaPixels)
         if (croppedImageBlob) {
-          const fileName = `${userProfile.id}/${Date.now()}.jpg`
-
           const formData = new FormData()
           formData.append('file', croppedImageBlob, 'avatar.jpg')
-          formData.append('fileName', fileName)
 
           try {
             const result = await uploadAvatar(formData)

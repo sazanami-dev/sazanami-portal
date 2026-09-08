@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export type UserProfileData = {
@@ -33,11 +34,7 @@ export async function getUserProfile(): Promise<UserProfileData | null> {
 
   // Use Service Role Key for the DB query to bypass RLS on user_profiles.
   // Auth check is already done above with the user's session.
-  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
-  const serviceClient = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const serviceClient = createAdminClient()
 
   const { data, error } = await serviceClient
     .from('users')
@@ -71,11 +68,7 @@ export async function updateUserProfile(bio: string, avatarUrl: string | null) {
 
   // Bypass RLS for upserting profile using Service Role Key, 
   // since we already authenticated the user.
-  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
-  const serviceClient = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const serviceClient = createAdminClient()
 
   const { error } = await serviceClient
     .from('user_profiles')
@@ -97,11 +90,7 @@ export async function getAvatarSignedUrl(avatarUrl: string | null): Promise<stri
   if (!avatarUrl) return null
 
   // Bypass RLS and Storage JWT issues by using the Service Role Key
-  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
-  const serviceClient = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const serviceClient = createAdminClient()
 
   const { data, error } = await serviceClient.storage
     .from('avatars')
@@ -117,34 +106,26 @@ export async function getAvatarSignedUrl(avatarUrl: string | null): Promise<stri
 
 export async function uploadAvatar(formData: FormData) {
   const file = formData.get('file') as File
-  const fileName = formData.get('fileName') as string
 
   const supabase = await createClient()
   const { data: userData } = await supabase.auth.getUser()
   if (!userData?.user) throw new Error('Not authenticated')
 
-  // Try standard upload
-  const { data, error } = await supabase.storage
+  // ファイル名はサーバー側で構築し、パストラバーサルを防止する。
+  // クライアントから受け取った fileName は使用しない。
+  const safeFileName = `${userData.user.id}/${Date.now()}.jpg`
+
+  const serviceClient = createAdminClient()
+  const { data, error } = await serviceClient.storage
     .from('avatars')
-    .upload(fileName, file, {
+    .upload(safeFileName, file, {
       contentType: file.type,
       upsert: true
     })
 
   if (error) {
-    console.error('[uploadAvatar] Standard upload error:', error.message)
-    // Fallback to Service Role Key (bypasses RLS and potentially storage JWT strict checks)
-    const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
-    const serviceClient = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-    const { data: sData, error: sError } = await serviceClient.storage
-      .from('avatars')
-      .upload(fileName, file, { contentType: file.type, upsert: true })
-
-    if (sError) throw new Error(sError.message)
-    return { path: sData.path }
+    console.error('[uploadAvatar] upload error:', error.message)
+    throw new Error(error.message)
   }
 
   return { path: data.path }
@@ -158,11 +139,7 @@ export async function getPublicMemberProfile(userId: string): Promise<MemberPubl
     return null
   }
 
-  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
-  const serviceClient = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const serviceClient = createAdminClient()
 
   // Verify viewer is active member
   const { data: viewer } = await serviceClient
@@ -205,3 +182,4 @@ export async function getPublicMemberProfile(userId: string): Promise<MemberPubl
     avatarSignedUrl,
   }
 }
+
