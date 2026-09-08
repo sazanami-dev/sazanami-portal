@@ -86,8 +86,26 @@ export async function updateUserProfile(bio: string, avatarUrl: string | null) {
   return { success: true }
 }
 
+const MAX_AVATAR_SIZE = 2 * 1024 * 1024 // 2MB
+const ALLOWED_MIME_TYPES: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+}
+
 export async function getAvatarSignedUrl(avatarUrl: string | null): Promise<string | null> {
   if (!avatarUrl) return null
+
+  // パストラバーサル等の不正パスを防止
+  if (avatarUrl.includes('..') || avatarUrl.startsWith('/')) {
+    return null
+  }
+
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData?.user) {
+    return null
+  }
 
   // Bypass RLS and Storage JWT issues by using the Service Role Key
   const serviceClient = createAdminClient()
@@ -105,22 +123,40 @@ export async function getAvatarSignedUrl(avatarUrl: string | null): Promise<stri
 }
 
 export async function uploadAvatar(formData: FormData) {
-  const file = formData.get('file') as File
-
   const supabase = await createClient()
-  const { data: userData } = await supabase.auth.getUser()
-  if (!userData?.user) throw new Error('Not authenticated')
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData?.user) {
+    throw new Error('Not authenticated')
+  }
 
-  // ファイル名はサーバー側で構築し、パストラバーサルを防止する。
+  const file = formData.get('file')
+  if (!file || !(file instanceof File)) {
+    throw new Error('画像ファイルが指定されていません')
+  }
+
+  if (file.size === 0) {
+    throw new Error('ファイルが空です')
+  }
+
+  if (file.size > MAX_AVATAR_SIZE) {
+    throw new Error('画像サイズは2MB以下にしてください')
+  }
+
+  const extension = ALLOWED_MIME_TYPES[file.type]
+  if (!extension) {
+    throw new Error('許可されていないファイル形式です (jpg, png, webp のみ対応)')
+  }
+
+  // ファイル名はサーバー側で拡張子も含めて構築し、パストラバーサルを防止する。
   // クライアントから受け取った fileName は使用しない。
-  const safeFileName = `${userData.user.id}/${Date.now()}.jpg`
+  const safeFileName = `${userData.user.id}/${Date.now()}.${extension}`
 
   const serviceClient = createAdminClient()
   const { data, error } = await serviceClient.storage
     .from('avatars')
     .upload(safeFileName, file, {
       contentType: file.type,
-      upsert: true
+      upsert: true,
     })
 
   if (error) {
