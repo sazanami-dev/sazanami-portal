@@ -1,11 +1,10 @@
 'use client'
 
 import React from 'react'
-import DOMPurify from 'isomorphic-dompurify'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
-import rehypeRaw from 'rehype-raw'
+import rehypeSanitize from 'rehype-sanitize'
 
 export const markdownComponents = {
   h1: ({ children, ...props }: React.ComponentPropsWithoutRef<'h1'>) => (
@@ -86,8 +85,6 @@ interface ProfileMarkdownViewProps {
 }
 
 export function ProfileMarkdownView({ content, className = '' }: ProfileMarkdownViewProps) {
-  const sanitized = DOMPurify.sanitize(content)
-
   return (
     <div
       className={className}
@@ -100,10 +97,10 @@ export function ProfileMarkdownView({ content, className = '' }: ProfileMarkdown
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks]}
-        rehypePlugins={[rehypeRaw]}
+        rehypePlugins={[rehypeSanitize]}
         components={markdownComponents}
       >
-        {sanitized}
+        {content}
       </ReactMarkdown>
     </div>
   )
