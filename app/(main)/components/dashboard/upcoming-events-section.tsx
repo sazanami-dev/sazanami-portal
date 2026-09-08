@@ -13,7 +13,7 @@ function formatEventDate(startStr: string, endStr: string, isAllDay: boolean) {
   const dateStr = `${y}/${m}/${d} (${w})`;
 
   if (isAllDay) {
-    return `日時: ${dateStr} (終日)`;
+    return `日時: ${dateStr}`;
   }
 
   const timeFormatter = new Intl.DateTimeFormat('ja-JP', {
