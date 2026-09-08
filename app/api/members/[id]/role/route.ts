@@ -73,6 +73,9 @@ export async function POST(request: Request, context: RouteContext) {
     if (!canAssignRole(ctx.role, newRole)) {
       return NextResponse.json({ error: 'cannot_assign_role' }, { status: 403 })
     }
+    if (targetId === ctx.userId) {
+      return NextResponse.json({ error: 'cannot_change_own_role' }, { status: 400 })
+    }
   } else {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
