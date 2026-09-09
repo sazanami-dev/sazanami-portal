@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -262,6 +263,11 @@ export function AnnouncementEditor({
           <DialogTitle>
             {heading}（{step}/2）
           </DialogTitle>
+          <DialogDescription>
+            {step === 1
+              ? 'タイトルと本文を入力します。本文には Markdown が使えます。'
+              : '公開タイミングやカテゴリなどを設定します。'}
+          </DialogDescription>
         </DialogHeader>
 
         {error && (

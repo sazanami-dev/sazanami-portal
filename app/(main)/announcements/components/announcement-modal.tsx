@@ -5,6 +5,7 @@ import React from 'react'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -36,9 +37,10 @@ export function AnnouncementModal({
               <DialogTitle className="pr-8 text-lg leading-snug">
                 {announcement.title}
               </DialogTitle>
-              <p className="text-xs text-muted-foreground">
+              {/* DialogDescription にすることで、読み上げ時の説明も兼ねる */}
+              <DialogDescription className="text-xs">
                 公開日: {formatAnnouncementDateTime(announcement.publishAt)}
-              </p>
+              </DialogDescription>
             </DialogHeader>
             <AnnouncementMarkdown
               content={announcement.content}
