@@ -27,11 +27,11 @@ export function ProfileCardClient({ userProfile, avatarSignedUrl }: ProfileCardC
           <img
             src={avatarSignedUrl}
             alt="User avatar"
-            className="h-24 w-24 rounded-full object-cover bg-muted transition-transform group-hover:scale-105"
+            className="h-50 w-50 rounded-full object-cover bg-muted transition-transform group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted transition-transform group-hover:scale-105">
-            <User className="h-12 w-12 text-muted-foreground" />
+          <div className="flex h-50 w-50 items-center justify-center rounded-full bg-muted transition-transform group-hover:scale-105">
+            <User className="h-25 w-25 text-muted-foreground" />
           </div>
         )}
       </button>
