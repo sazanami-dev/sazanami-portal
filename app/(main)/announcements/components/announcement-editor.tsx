@@ -57,9 +57,31 @@ function defaultScheduledLocal(): string {
   return toDateTimeLocalValue(new Date().toISOString())
 }
 
+/**
+ * 過去日時かどうか。datetime-local は分までしか持たないので、
+ * 現在時刻も分に切り捨てて比べる。秒単位で比べると、初期値の
+ * 「現在時刻」がその場で過去扱いになってしまう。
+ */
 function isPastLocalValue(value: string): boolean {
   const iso = fromDateTimeLocalValue(value)
-  return !iso || new Date(iso).getTime() <= Date.now()
+  if (!iso) return true
+  return new Date(iso).getTime() < currentMinuteTime()
+}
+
+/**
+ * 指定時刻が未来の分かどうか。現在の分ちょうどは「未来ではない」＝
+ * 実質その場で公開されるので、即時公開と同じ扱いにする。
+ */
+function isFutureLocalValue(value: string): boolean {
+  const iso = fromDateTimeLocalValue(value)
+  if (!iso) return false
+  return new Date(iso).getTime() > currentMinuteTime()
+}
+
+function currentMinuteTime(): number {
+  const date = new Date()
+  date.setSeconds(0, 0)
+  return date.getTime()
 }
 
 export function AnnouncementEditor({
@@ -183,8 +205,9 @@ export function AnnouncementEditor({
   }
 
   function handlePublishClick() {
-    // 即時公開は取り消せないため確認を挟む（予約投稿はそのまま保存）
-    if (canChooseSchedule && publishMode === 'scheduled') {
+    // 即時公開は取り消せないため確認を挟む。
+    // 予約投稿でも、指定時刻が現在の分なら実質その場で公開されるので確認する。
+    if (canChooseSchedule && publishMode === 'scheduled' && isFutureLocalValue(publishAtLocal)) {
       publish()
       return
     }
@@ -325,6 +348,8 @@ export function AnnouncementEditor({
                     <Input
                       type="datetime-local"
                       className="max-w-xs"
+                      // ピッカー上でも過去を選べないようにする
+                      min={defaultScheduledLocal()}
                       value={publishAtLocal}
                       onChange={(e) => setPublishAtLocal(e.target.value)}
                     />
