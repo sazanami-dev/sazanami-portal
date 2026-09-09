@@ -24,6 +24,10 @@ import {
   toDateTimeLocalValue,
 } from '@/lib/announcements/format'
 import {
+  CONTENT_MAX_LENGTH,
+  TITLE_MAX_LENGTH,
+} from '@/lib/announcements/validation'
+import {
   ANNOUNCEMENT_CATEGORIES,
   ANNOUNCEMENT_CATEGORY_LABELS,
   isScheduled,
@@ -36,8 +40,10 @@ import { AnnouncementMarkdown } from './announcement-markdown'
 type PublishMode = 'now' | 'scheduled'
 
 const ERROR_MESSAGES: Record<string, string> = {
-  invalid_title: 'タイトルを 255 文字以内で入力してください',
+  invalid_title: 'タイトルを入力してください',
+  title_too_long: `タイトルは ${TITLE_MAX_LENGTH} 文字以内で入力してください`,
   invalid_content: '本文を入力してください',
+  content_too_long: `本文は ${CONTENT_MAX_LENGTH.toLocaleString()} 文字以内で入力してください`,
   invalid_category: 'カテゴリの指定が不正です',
   invalid_status: 'ステータスの指定が不正です',
   invalid_publish_at: '公開日時の指定が不正です',
@@ -165,6 +171,26 @@ export function AnnouncementEditor({
     }
   }
 
+  /**
+   * 画面1 の入力チェック。超過したまま次の画面に進めないようにする。
+   * 文言は API から返るエラーと揃える。
+   */
+  function stepOneError(): string | null {
+    if (title.trim().length > TITLE_MAX_LENGTH) return ERROR_MESSAGES.title_too_long
+    if (content.trim().length > CONTENT_MAX_LENGTH) return ERROR_MESSAGES.content_too_long
+    return null
+  }
+
+  function goToSettings() {
+    const message = stepOneError()
+    if (message) {
+      setError(message)
+      return
+    }
+    setError(null)
+    setStep(2)
+  }
+
   /** 公開日時の入力値を API に渡す形にする。即時公開なら現在時刻 */
   function resolvePublishAt(): string | null | 'invalid' {
     if (!canChooseSchedule) return null
@@ -174,6 +200,11 @@ export function AnnouncementEditor({
   }
 
   function saveDraft() {
+    const message = stepOneError()
+    if (message) {
+      setError(message)
+      return
+    }
     void submit({ title, content, category, isImportant, status: 'draft' })
   }
 
@@ -245,10 +276,10 @@ export function AnnouncementEditor({
               <label className="mb-1 block text-sm font-medium" htmlFor="announcement-title">
                 タイトル
               </label>
+              {/* 上限は API 側で検証し、超えたらエラーを出す（入力は切り詰めない） */}
               <Input
                 id="announcement-title"
                 value={title}
-                maxLength={255}
                 placeholder="タイトルを入力"
                 onChange={(e) => setTitle(e.target.value)}
               />
@@ -305,7 +336,7 @@ export function AnnouncementEditor({
               ) : (
                 <span />
               )}
-              <Button type="button" disabled={!canProceed} onClick={() => setStep(2)}>
+              <Button type="button" disabled={!canProceed} onClick={goToSettings}>
                 次へ
               </Button>
             </DialogFooter>

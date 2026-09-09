@@ -10,7 +10,9 @@ export const CONTENT_MAX_LENGTH = 20000
 
 export type ValidationError =
   | 'invalid_title'
+  | 'title_too_long'
   | 'invalid_content'
+  | 'content_too_long'
   | 'invalid_category'
   | 'invalid_status'
   | 'invalid_publish_at'
@@ -20,18 +22,16 @@ export type Validated<T> = { ok: true; value: T } | { ok: false; error: Validati
 export function validateTitle(value: unknown): Validated<string> {
   if (typeof value !== 'string') return { ok: false, error: 'invalid_title' }
   const title = value.trim()
-  if (!title || title.length > TITLE_MAX_LENGTH) {
-    return { ok: false, error: 'invalid_title' }
-  }
+  if (!title) return { ok: false, error: 'invalid_title' }
+  if (title.length > TITLE_MAX_LENGTH) return { ok: false, error: 'title_too_long' }
   return { ok: true, value: title }
 }
 
 export function validateContent(value: unknown): Validated<string> {
   if (typeof value !== 'string') return { ok: false, error: 'invalid_content' }
   const content = value.trim()
-  if (!content || content.length > CONTENT_MAX_LENGTH) {
-    return { ok: false, error: 'invalid_content' }
-  }
+  if (!content) return { ok: false, error: 'invalid_content' }
+  if (content.length > CONTENT_MAX_LENGTH) return { ok: false, error: 'content_too_long' }
   return { ok: true, value: content }
 }
 
