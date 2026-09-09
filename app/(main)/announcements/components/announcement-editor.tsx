@@ -48,6 +48,20 @@ function errorMessageOf(code: string | undefined): string {
   return (code && ERROR_MESSAGES[code]) || '保存に失敗しました。時間をおいて再度お試しください'
 }
 
+/**
+ * 予約投稿の既定値は現在時刻。
+ * 下書きの publishAt は作成時刻（＝過去）なので、そのまま出すと
+ * 予約投稿を選んだ瞬間に古い日時が入ってしまう。
+ */
+function defaultScheduledLocal(): string {
+  return toDateTimeLocalValue(new Date().toISOString())
+}
+
+function isPastLocalValue(value: string): boolean {
+  const iso = fromDateTimeLocalValue(value)
+  return !iso || new Date(iso).getTime() <= Date.now()
+}
+
 export function AnnouncementEditor({
   open,
   announcement,
@@ -151,6 +165,11 @@ export function AnnouncementEditor({
     const publishAt = resolvePublishAt()
     if (publishAt === 'invalid') {
       setError('公開日時を指定してください')
+      return
+    }
+    // 過去日時での予約は受け付けない（即時公開したいなら「即時公開」を選ぶ）
+    if (publishMode === 'scheduled' && isPastLocalValue(publishAtLocal)) {
+      setError('公開日時には未来の日時を指定してください')
       return
     }
     void submit({
@@ -292,7 +311,13 @@ export function AnnouncementEditor({
                       type="radio"
                       name="publish-mode"
                       checked={publishMode === 'scheduled'}
-                      onChange={() => setPublishMode('scheduled')}
+                      onChange={() => {
+                        setPublishMode('scheduled')
+                        // 過去日時（下書きの作成時刻など）が残っていたら入れ直す
+                        if (isPastLocalValue(publishAtLocal)) {
+                          setPublishAtLocal(defaultScheduledLocal())
+                        }
+                      }}
                     />
                     予約投稿
                   </label>
