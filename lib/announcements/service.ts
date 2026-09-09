@@ -269,6 +269,10 @@ export async function updateAnnouncement(
     return getAnnouncement(id, { viewerCanManage: true })
   }
 
+  // PostgREST 経由の更新では schema.ts の $onUpdate が効かず、
+  // DB 側にトリガーも無いので、更新日時は明示的に入れる
+  patch.updated_at = new Date().toISOString()
+
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('announcements')
@@ -287,10 +291,11 @@ export async function updateAnnouncement(
  * 対象のステータスが draft の場合だけ削除する。
  */
 export async function deleteDraftAnnouncement(id: string): Promise<boolean> {
+  const now = new Date().toISOString()
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('announcements')
-    .update({ deleted_at: new Date().toISOString() })
+    .update({ deleted_at: now, updated_at: now })
     .eq('id', id)
     .eq('status', 'draft')
     .is('deleted_at', null)
