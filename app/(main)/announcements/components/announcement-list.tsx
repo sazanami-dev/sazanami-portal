@@ -248,13 +248,16 @@ export function AnnouncementList({ canManage }: { canManage: boolean }) {
                       {announcement.status === 'draft' && <StateBadge label="下書き" />}
                     </div>
                     {/*
-                      ::before で行全体を覆い、カードのどこを押しても詳細が開くようにする。
-                      ピン留め・編集などの操作ボタンは z-10 で手前に出して個別に効かせる。
+                      ::before で行全体を覆い、カードのどこを押しても開くようにする。
+                      下書きは読むものではなく書きかけのものなので、詳細ではなく編集を開く。
+                      ピン留め・削除などの操作ボタンは z-10 で手前に出して個別に効かせる。
                     */}
                     <button
                       type="button"
                       className="mt-2 block cursor-pointer text-left text-lg font-semibold before:absolute before:inset-0 before:content-[''] hover:text-primary"
-                      onClick={() => setSelected(announcement)}
+                      onClick={() =>
+                        view === 'drafts' ? openEditor(announcement) : setSelected(announcement)
+                      }
                     >
                       {announcement.title}
                     </button>
@@ -267,15 +270,18 @@ export function AnnouncementList({ canManage }: { canManage: boolean }) {
                     <span>{formatAnnouncementDateTime(announcement.publishAt)}</span>
                     {canManage && (
                       <div className="relative z-10 flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="編集"
-                          title="編集"
-                          onClick={() => openEditor(announcement)}
-                        >
-                          <PencilIcon />
-                        </Button>
+                        {/* 下書きはカード全体が編集を開くので、えんぴつは出さない */}
+                        {view === 'list' && (
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label="編集"
+                            title="編集"
+                            onClick={() => openEditor(announcement)}
+                          >
+                            <PencilIcon />
+                          </Button>
+                        )}
                         {/* 削除できるのは下書きのみ。公開済みはアーカイブ運用 */}
                         {announcement.status === 'draft' && (
                           <Button
