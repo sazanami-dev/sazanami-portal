@@ -219,7 +219,7 @@ export function AnnouncementList({ canManage }: { canManage: boolean }) {
               return (
                 <li
                   key={announcement.id}
-                  className={`flex items-start gap-3 p-4 transition-colors hover:bg-muted/50 ${
+                  className={`relative flex cursor-pointer items-start gap-3 p-4 transition-colors hover:bg-muted/50 ${
                     scheduled || announcement.status === 'archived' ? 'opacity-60' : ''
                   }`}
                 >
@@ -228,7 +228,7 @@ export function AnnouncementList({ canManage }: { canManage: boolean }) {
                       type="button"
                       aria-label={announcement.isPinned ? 'ピン留めを解除' : 'ピン留めする'}
                       title={announcement.isPinned ? 'ピン留めを解除' : 'ピン留めする'}
-                      className={`mt-1 rounded p-1 transition-colors hover:bg-muted ${
+                      className={`relative z-10 mt-1 rounded p-1 transition-colors hover:bg-muted ${
                         announcement.isPinned ? 'text-primary' : 'text-muted-foreground'
                       }`}
                       onClick={() => void togglePin(announcement)}
@@ -247,9 +247,13 @@ export function AnnouncementList({ canManage }: { canManage: boolean }) {
                       )}
                       {announcement.status === 'draft' && <StateBadge label="下書き" />}
                     </div>
+                    {/*
+                      ::before で行全体を覆い、カードのどこを押しても詳細が開くようにする。
+                      ピン留め・編集などの操作ボタンは z-10 で手前に出して個別に効かせる。
+                    */}
                     <button
                       type="button"
-                      className="mt-2 block text-left text-lg font-semibold hover:text-primary"
+                      className="mt-2 block cursor-pointer text-left text-lg font-semibold before:absolute before:inset-0 before:content-[''] hover:text-primary"
                       onClick={() => setSelected(announcement)}
                     >
                       {announcement.title}
@@ -262,7 +266,7 @@ export function AnnouncementList({ canManage }: { canManage: boolean }) {
                   <div className="flex shrink-0 flex-col items-end gap-2 text-sm text-muted-foreground">
                     <span>{formatAnnouncementDateTime(announcement.publishAt)}</span>
                     {canManage && (
-                      <div className="flex items-center gap-1">
+                      <div className="relative z-10 flex items-center gap-1">
                         <Button
                           variant="ghost"
                           size="icon-sm"
