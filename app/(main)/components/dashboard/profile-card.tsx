@@ -8,7 +8,7 @@ export async function ProfileCard() {
   if (!userProfile) {
     // If no profile is found or not logged in, we could return a skeleton or null
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl border bg-card p-6 text-card-foreground shadow backdrop-blur-md">
+      <div className="flex h-full flex-col items-center justify-center rounded-xl border bg-card p-6 text-card-foreground shadow backdrop-blur-md">
         <p className="text-sm text-muted-foreground">プロフィール情報が取得できません</p>
       </div>
     )

@@ -6,7 +6,7 @@ import { getUpcomingEvents, type UpcomingEvent } from '@/lib/calendar/upcoming'
 
 function SectionShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-col rounded-xl border bg-card p-6 text-card-foreground shadow">
+    <div className="flex h-full flex-col rounded-xl border bg-card p-6 text-card-foreground shadow">
       <h2 className="mb-4 text-xl font-bold">今後の活動</h2>
       {children}
     </div>

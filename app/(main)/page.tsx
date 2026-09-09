@@ -17,25 +17,28 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-zinc-50 px-4 py-8 dark:bg-black md:px-8">
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto max-w-[1600px]">
         <h1 className="mb-8 text-3xl font-bold tracking-tight text-foreground">
           ダッシュボード
         </h1>
         
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
-          {/* Main content column (Left on Desktop) */}
-          <div className="flex flex-col gap-6 lg:col-span-2">
-            {/* お知らせの取得を待たずに他のカードを先に表示する */}
-            <Suspense fallback={<Skeleton className="h-72 w-full rounded-xl" />}>
-              <AnnouncementsSection />
-            </Suspense>
-            <UpcomingEventsSection />
+        <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-[320px_1fr_1fr] lg:gap-6 xl:grid-cols-[380px_1fr_1fr] xl:gap-4">
+          {/* プロフィールカード (左) */}
+          <div className="flex h-full flex-col">
+            <ProfileCard />
           </div>
 
-          {/* Sidebar column (Right on Desktop) */}
-          <div className="flex flex-col gap-6">
-            <ProfileCard />
-            {/* Note: LogoutButton can be moved to header or keep it somewhere else */}
+          {/* お知らせ (中央) */}
+          <div className="flex h-full flex-col">
+            {/* お知らせの取得を待たずに他のカードを先に表示する */}
+            <Suspense fallback={<Skeleton className="h-full min-h-72 w-full rounded-xl" />}>
+              <AnnouncementsSection />
+            </Suspense>
+          </div>
+
+          {/* 今後の活動 (右) */}
+          <div className="flex h-full flex-col">
+            <UpcomingEventsSection />
           </div>
         </div>
       </div>
