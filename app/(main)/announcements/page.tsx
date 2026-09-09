@@ -1,21 +1,33 @@
 import React from 'react'
-import { AnnouncementList } from '@/app/(main)/announcements/components/announcement-list'
+import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { ArrowLeftIcon } from 'lucide-react'
 
-export default function AnnouncementsPage() {
+import { requireViewerRole } from '@/lib/members/route-helpers'
+import {
+  canManageAnnouncements,
+  canViewAnnouncements,
+} from '@/lib/announcements/permissions'
+
+import { AnnouncementList } from './components/announcement-list'
+
+export default async function AnnouncementsPage() {
+  const { role, error } = await requireViewerRole()
+  if (error === 'unauthenticated') redirect('/signin')
+  if (!role) redirect('/error')
+  if (!canViewAnnouncements(role)) redirect('/')
+
   return (
-    <div className="min-h-screen bg-zinc-50 px-4 py-8 dark:bg-black md:px-8">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            お知らせ
-          </h1>
-          {/* TODO: Role check for manager+ to show '新規作成' button */}
-          <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-            新規作成
-          </button>
-        </div>
-        
-        <AnnouncementList />
+    <div className="px-4 md:px-8">
+      <div className="mx-auto max-w-5xl space-y-4">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeftIcon className="size-4" />
+          ダッシュボードへ戻る
+        </Link>
+        <AnnouncementList canManage={canManageAnnouncements(role)} />
       </div>
     </div>
   )
