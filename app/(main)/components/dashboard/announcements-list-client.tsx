@@ -12,14 +12,14 @@ import type { Announcement } from '@/lib/announcements/types'
 
 /**
  * ダッシュボードのお知らせ一覧。
- * 3 件分の高さで表示し、続きはスクロールで読めるようにする。
+ * 表示するのは取得済みの 3 件のみで、続きは一覧ページで読んでもらう。
  */
 export function DashboardAnnouncementsList({ items }: { items: Announcement[] }) {
   const [selected, setSelected] = useState<Announcement | null>(null)
 
   return (
     <>
-      <ul className="max-h-80 space-y-4 overflow-y-auto pr-1">
+      <ul className="space-y-4">
         {items.map((announcement) => (
           <li key={announcement.id}>
             <button
@@ -35,7 +35,7 @@ export function DashboardAnnouncementsList({ items }: { items: Announcement[] })
                 {announcement.isImportant && <ImportantBadge />}
                 <CategoryBadge category={announcement.category} />
               </div>
-              <h3 className="mt-2 font-semibold group-hover:text-primary">
+              <h3 className="mt-2 line-clamp-2 font-semibold group-hover:text-primary">
                 {announcement.title}
               </h3>
               <p className="mt-1 text-xs text-muted-foreground">

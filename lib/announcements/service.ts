@@ -10,8 +10,14 @@ import type {
 /** 一覧ページの 1 ページあたりの件数 */
 export const ANNOUNCEMENTS_PAGE_SIZE = 10
 
-/** ダッシュボードのお知らせ欄に読み込む件数（3 件表示 + スクロールで続きを見せる） */
-export const DASHBOARD_ANNOUNCEMENTS_LIMIT = 10
+/** ダッシュボードに表示する件数 */
+export const DASHBOARD_ANNOUNCEMENTS_LIMIT = 3
+
+/**
+ * 取得する件数。表示件数ちょうどだと、取得後に除外が入ったときに
+ * 表示が減ってしまうため、余分に取ってから絞り込む。
+ */
+const FETCH_MARGIN = 10
 
 /** 更新時にダッシュボードのキャッシュを破棄するためのタグ */
 export const ANNOUNCEMENTS_TAG = 'announcements'
@@ -164,9 +170,9 @@ export const getDashboardAnnouncements = unstable_cache(
   async (): Promise<Announcement[]> => {
     const result = await listPublishedAnnouncements({
       page: 1,
-      pageSize: DASHBOARD_ANNOUNCEMENTS_LIMIT,
+      pageSize: Math.max(DASHBOARD_ANNOUNCEMENTS_LIMIT * 2, FETCH_MARGIN),
     })
-    return result.items
+    return result.items.slice(0, DASHBOARD_ANNOUNCEMENTS_LIMIT)
   },
   ['dashboard-announcements'],
   { tags: [ANNOUNCEMENTS_TAG], revalidate: 60 }
