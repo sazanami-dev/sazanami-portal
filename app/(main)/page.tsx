@@ -16,11 +16,8 @@ export default async function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 px-4 py-8 dark:bg-black md:px-8">
+    <div className="min-h-screen bg-zinc-50 px-4 py-4 dark:bg-black md:px-8">
       <div className="mx-auto max-w-[1600px]">
-        <h1 className="mb-8 text-3xl font-bold tracking-tight text-foreground">
-          ダッシュボード
-        </h1>
         
         <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-[320px_1fr_1fr] lg:gap-6 xl:grid-cols-[380px_1fr_1fr] xl:gap-4">
           {/* プロフィールカード (左) */}
