@@ -45,6 +45,14 @@ export const ANNOUNCEMENT_CATEGORY_BADGE_CLASSES: Record<AnnouncementCategory, s
   system: 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
 }
 
+/** カテゴリごとの左ボーダー色（タグの色と連動） */
+export const ANNOUNCEMENT_CATEGORY_BORDER_CLASSES: Record<AnnouncementCategory, string> = {
+  info: 'border-l-blue-500 dark:border-l-blue-400',
+  internal_event: 'border-l-green-500 dark:border-l-green-400',
+  external_event: 'border-l-purple-500 dark:border-l-purple-400',
+  system: 'border-l-zinc-400 dark:border-l-zinc-500',
+}
+
 export type Announcement = {
   id: string
   title: string

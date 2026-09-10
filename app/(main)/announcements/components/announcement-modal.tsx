@@ -12,7 +12,11 @@ import {
 import { formatAnnouncementDateTime } from '@/lib/announcements/format'
 import type { Announcement } from '@/lib/announcements/types'
 
-import { CategoryBadge, ImportantBadge } from './announcement-badges'
+import {
+  CategoryBadge,
+  ImportantBadge,
+  PinnedBadge,
+} from './announcement-badges'
 import { AnnouncementMarkdown } from './announcement-markdown'
 
 /** お知らせの全文表示モーダル。ダッシュボードと一覧ページで共用する */
@@ -31,6 +35,7 @@ export function AnnouncementModal({
           <>
             <DialogHeader className="gap-3">
               <div className="flex flex-wrap items-center gap-2">
+                {announcement.isPinned && <PinnedBadge />}
                 {announcement.isImportant && <ImportantBadge />}
                 <CategoryBadge category={announcement.category} />
               </div>

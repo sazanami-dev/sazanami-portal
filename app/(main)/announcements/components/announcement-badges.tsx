@@ -1,4 +1,4 @@
-import React from 'react'
+import { PinIcon } from 'lucide-react'
 
 import {
   ANNOUNCEMENT_CATEGORY_BADGE_CLASSES,
@@ -12,6 +12,19 @@ export function CategoryBadge({ category }: { category: AnnouncementCategory }) 
   return (
     <span className={`${BASE_CLASS} ${ANNOUNCEMENT_CATEGORY_BADGE_CLASSES[category]}`}>
       {ANNOUNCEMENT_CATEGORY_LABELS[category]}
+    </span>
+  )
+}
+
+/** ピン留めバッジ（アイコンのみ） */
+export function PinnedBadge() {
+  return (
+    <span
+      className="inline-flex items-center justify-center rounded bg-[#0F3FDD]/10 p-1 text-[#0F3FDD] dark:bg-[#0F3FDD]/20 dark:text-blue-300"
+      title="ピン留め"
+      aria-label="ピン留め"
+    >
+      <PinIcon className="size-3.5 fill-current rotate-45" />
     </span>
   )
 }
