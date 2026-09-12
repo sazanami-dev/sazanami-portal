@@ -26,5 +26,7 @@ export async function GET() {
   return NextResponse.json({
     channels: listAnnounceChannels(),
     defaultByCategory: defaultAnnounceChannelIdByCategory(),
+    // 「Discord で開く」リンクの組み立てに使う
+    guildId: process.env.DISCORD_GUILD_ID?.trim() ?? null,
   })
 }

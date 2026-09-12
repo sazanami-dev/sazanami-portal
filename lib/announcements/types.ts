@@ -134,6 +134,12 @@ export function isVisibleToMembers(
 /** 管理者向けの一覧・詳細でのみ返す拡張形 */
 export type ManagedAnnouncement = Announcement & { discord: AnnouncementDiscord }
 
+/**
+ * 画面で扱う一覧の要素。
+ * 一般ユーザー向けの取得では discord が付かないため任意にしている。
+ */
+export type AnnouncementListItem = Announcement & { discord?: AnnouncementDiscord }
+
 /** 手動再送の対象か（送信失敗したものだけ再送できる） */
 export function canResendDiscord(discord: AnnouncementDiscord): boolean {
   return discord.status === 'failed' && discord.channelId !== null
