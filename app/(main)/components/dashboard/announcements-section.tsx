@@ -9,7 +9,7 @@ import { DashboardAnnouncementsList } from './announcements-list-client'
 
 function SectionShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-col rounded-xl border bg-card p-6 text-card-foreground shadow">
+    <div className="flex h-full flex-col rounded-xl border bg-card p-6 text-card-foreground shadow">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-bold">お知らせ</h2>
         <Link

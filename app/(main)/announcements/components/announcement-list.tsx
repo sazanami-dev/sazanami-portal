@@ -26,7 +26,12 @@ import {
   type AnnouncementCategory,
 } from '@/lib/announcements/types'
 
-import { CategoryBadge, ImportantBadge, StateBadge } from './announcement-badges'
+import {
+  CategoryBadge,
+  ImportantBadge,
+  PinnedBadge,
+  StateBadge,
+} from './announcement-badges'
 import { AnnouncementEditor } from './announcement-editor'
 import { AnnouncementModal } from './announcement-modal'
 
@@ -220,6 +225,8 @@ export function AnnouncementList({ canManage }: { canManage: boolean }) {
                 <li
                   key={announcement.id}
                   className={`relative flex cursor-pointer items-start gap-3 p-4 transition-colors hover:bg-muted/50 ${
+                    announcement.isPinned ? 'border-l-4 border-l-[#0F3FDD]' : ''
+                  } ${
                     scheduled || announcement.status === 'archived' ? 'opacity-60' : ''
                   }`}
                 >
@@ -228,17 +235,24 @@ export function AnnouncementList({ canManage }: { canManage: boolean }) {
                       type="button"
                       aria-label={announcement.isPinned ? 'ピン留めを解除' : 'ピン留めする'}
                       title={announcement.isPinned ? 'ピン留めを解除' : 'ピン留めする'}
-                      className={`relative z-10 mt-1 rounded p-1 transition-colors hover:bg-muted ${
-                        announcement.isPinned ? 'text-primary' : 'text-muted-foreground'
+                      className={`relative z-10 mt-1 rounded p-1.5 transition-all ${
+                        announcement.isPinned
+                          ? 'bg-[#0F3FDD]/10 text-[#0F3FDD] hover:bg-[#0F3FDD]/20 shadow-xs ring-1 ring-[#0F3FDD]/30'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                       }`}
                       onClick={() => void togglePin(announcement)}
                     >
-                      <PinIcon className="size-4" />
+                      <PinIcon
+                        className={`size-4 transition-transform ${
+                          announcement.isPinned ? 'fill-current rotate-45' : ''
+                        }`}
+                      />
                     </button>
                   )}
 
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
+                      {announcement.isPinned && <PinnedBadge />}
                       {announcement.isImportant && <ImportantBadge />}
                       <CategoryBadge category={announcement.category} />
                       {scheduled && <StateBadge label="予約投稿" />}

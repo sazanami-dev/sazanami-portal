@@ -15,38 +15,40 @@ export function ProfileCardClient({ userProfile, avatarSignedUrl }: ProfileCardC
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border bg-card p-6 text-card-foreground shadow backdrop-blur-md">
-      <button
-        type="button"
-        onClick={() => setIsProfileModalOpen(true)}
-        className="group relative rounded-full focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
-        title="プロフィールを表示"
-      >
-        {avatarSignedUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={avatarSignedUrl}
-            alt="User avatar"
-            className="h-24 w-24 rounded-full object-cover bg-muted transition-transform group-hover:scale-105"
-          />
-        ) : (
-          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted transition-transform group-hover:scale-105">
-            <User className="h-12 w-12 text-muted-foreground" />
-          </div>
-        )}
-      </button>
+    <div className="flex h-full flex-col items-center justify-between rounded-xl border bg-card p-6 text-card-foreground shadow backdrop-blur-md">
+      <div className="my-auto flex flex-col items-center justify-center text-center">
+        <button
+          type="button"
+          onClick={() => setIsProfileModalOpen(true)}
+          className="group relative rounded-full focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
+          title="プロフィールを表示"
+        >
+          {avatarSignedUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarSignedUrl}
+              alt="User avatar"
+              className="h-50 w-50 rounded-full object-cover bg-muted transition-transform group-hover:scale-105"
+            />
+          ) : (
+            <div className="flex h-50 w-50 items-center justify-center rounded-full bg-muted transition-transform group-hover:scale-105">
+              <User className="h-25 w-25 text-muted-foreground" />
+            </div>
+          )}
+        </button>
 
-      <button
-        type="button"
-        onClick={() => setIsProfileModalOpen(true)}
-        className="mt-4 text-xl font-semibold text-foreground hover:text-primary hover:underline transition-colors focus:outline-hidden cursor-pointer"
-        title="プロフィールを表示"
-      >
-        {userProfile.name}
-      </button>
-      <p className="text-sm text-muted-foreground">
-        {userProfile.className || 'クラス未設定'} - {userProfile.studentId || '学籍番号未設定'}
-      </p>
+        <button
+          type="button"
+          onClick={() => setIsProfileModalOpen(true)}
+          className="mt-4 text-xl font-semibold text-foreground hover:text-primary hover:underline transition-colors focus:outline-hidden cursor-pointer"
+          title="プロフィールを表示"
+        >
+          {userProfile.name}
+        </button>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {userProfile.className || 'クラス未設定'} - {userProfile.studentId || '学籍番号未設定'}
+        </p>
+      </div>
 
       <div className="mt-6 w-full">
         <Link
