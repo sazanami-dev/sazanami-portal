@@ -44,6 +44,8 @@ export const announcementCategoryEnum = pgEnum('announcement_category', [
 export const discordNotificationStatusEnum = pgEnum('discord_notification_status', [
   'not_sent',
   'pending',
+  // 送信処理中。cron の重複起動や再送ボタンの連打で二重送信しないための排他用
+  'sending',
   'sent',
   'failed',
 ])
@@ -347,6 +349,11 @@ export const announcements = pgTable(
       table.publishAt
     ),
     statusIdx: index('announcements_status_idx').on(table.status),
+    // cron が送信待ちのお知らせを拾うための索引
+    discordPendingIdx: index('announcements_discord_pending_idx').on(
+      table.discordNotificationStatus,
+      table.publishAt
+    ),
     discordMessageConsistency: check(
       'discord_message_consistency',
       sql`${table.discordMessageId} IS NULL OR ${table.discordChannelId} IS NOT NULL`
