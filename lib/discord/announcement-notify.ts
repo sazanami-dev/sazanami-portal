@@ -11,6 +11,9 @@ const ERROR_DETAIL_MAX_LENGTH = 1000
 /** Discord API の応答を待つ上限 */
 const REQUEST_TIMEOUT_MS = 10_000
 
+/** Discord が受け付ける nonce の長さ（超えると 50035 で弾かれる） */
+const NONCE_MAX_LENGTH = 25
+
 const API_BASE = 'https://discord.com/api/v10'
 
 const USER_AGENT = 'DiscordBot (https://sazanami-portal.vercel.app, 1.0)'
@@ -84,6 +87,7 @@ function failureFromError(error: unknown): DiscordSendFailure {
 /**
  * 新規送信。`nonce` にお知らせの ID を渡すことで、
  * 万一リクエストが重複しても Discord 側でも重複排除が効く。
+ * nonce は 25 文字までしか受け付けないため、ハイフンを除いて切り詰める。
  */
 export async function sendAnnouncementMessage({
   botToken,
@@ -99,7 +103,9 @@ export async function sendAnnouncementMessage({
       body: JSON.stringify({
         content,
         allowed_mentions: allowedMentions(mentionEveryone),
-        ...(nonce ? { nonce } : {}),
+        ...(nonce
+          ? { nonce: nonce.replace(/-/g, '').slice(0, NONCE_MAX_LENGTH) }
+          : {}),
       }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
