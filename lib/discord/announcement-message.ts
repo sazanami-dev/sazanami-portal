@@ -22,7 +22,6 @@ export type AnnouncementMessageInput = {
   /** ポータル側の Markdown 本文 */
   content: string
   category: AnnouncementCategory
-  isImportant: boolean
   /** 公開日時（ISO 文字列） */
   publishAt: string
   mentionEveryone: boolean
@@ -71,7 +70,8 @@ function truncate(text: string, maxLength: number): { text: string; truncated: b
 export function buildAnnouncementMessage(
   input: AnnouncementMessageInput
 ): AnnouncementMessage {
-  const heading = `## ${input.isImportant ? '🔴 ' : ''}【${input.title.trim()}】`
+  // 「重要」タグはポータル内の表示用。Discord のメッセージには出さない
+  const heading = `## 【${input.title.trim()}】`
   const mention = input.mentionEveryone ? '@everyone\n' : ''
 
   const portalLink = input.portalUrl

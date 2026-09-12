@@ -235,7 +235,6 @@ export function AnnouncementEditor({
         title: title.trim() || '（タイトル未入力）',
         content,
         category,
-        isImportant,
         publishAt:
           publishMode === 'scheduled'
             ? (fromDateTimeLocalValue(publishAtLocal) ?? new Date().toISOString())
@@ -247,7 +246,6 @@ export function AnnouncementEditor({
       title,
       content,
       category,
-      isImportant,
       publishMode,
       publishAtLocal,
       announcement,

@@ -45,7 +45,6 @@ function messageFor(announcement: ManagedAnnouncement): string {
     title: announcement.title,
     content: announcement.content,
     category: announcement.category,
-    isImportant: announcement.isImportant,
     publishAt: announcement.publishAt,
     mentionEveryone: announcement.discord.mentionEveryone,
     portalUrl: portalUrl(),

@@ -158,13 +158,13 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   revalidateAnnouncements()
 
-  // Discord に出ている内容が変わる更新か（メンションの有無も本文に出る）
+  // Discord に出ている内容が変わる更新か（メンションの有無も本文に出る）。
+  // 「重要」タグはポータル内の表示だけなので、変わっても投稿は編集しない。
   const messageChanged = (
     [
       ['title', patch.title, existing.title],
       ['content', patch.content, existing.content],
       ['category', patch.category, existing.category],
-      ['isImportant', patch.isImportant, existing.isImportant],
       ['mention', patch.discordMentionEveryone, existing.discord.mentionEveryone],
     ] as const
   ).some(([, next, current]) => next !== undefined && next !== current)
