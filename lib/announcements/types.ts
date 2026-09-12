@@ -53,6 +53,36 @@ export const ANNOUNCEMENT_CATEGORY_BORDER_CLASSES: Record<AnnouncementCategory, 
   system: 'border-l-zinc-400 dark:border-l-zinc-500',
 }
 
+export type DiscordNotificationStatus =
+  | 'not_sent'
+  | 'pending'
+  | 'sending'
+  | 'sent'
+  | 'failed'
+
+export const DISCORD_NOTIFICATION_STATUS_LABELS: Record<
+  DiscordNotificationStatus,
+  string
+> = {
+  not_sent: '通知しない',
+  pending: '送信待ち',
+  sending: '送信処理中',
+  sent: '送信済み',
+  failed: '送信失敗',
+}
+
+/** お知らせの Discord 通知情報。管理者向けの画面でのみ扱う */
+export type AnnouncementDiscord = {
+  /** 通知先チャンネル ID。null = 通知しない */
+  channelId: string | null
+  mentionEveryone: boolean
+  /** 送信成功後に Discord から返るメッセージ ID。編集に必要 */
+  messageId: string | null
+  status: DiscordNotificationStatus
+  notifiedAt: string | null
+  error: string | null
+}
+
 export type Announcement = {
   id: string
   title: string
@@ -99,4 +129,12 @@ export function isVisibleToMembers(
   now: Date = new Date()
 ): boolean {
   return announcement.status === 'published' && !isScheduled(announcement, now)
+}
+
+/** 管理者向けの一覧・詳細でのみ返す拡張形 */
+export type ManagedAnnouncement = Announcement & { discord: AnnouncementDiscord }
+
+/** 手動再送の対象か（送信失敗したものだけ再送できる） */
+export function canResendDiscord(discord: AnnouncementDiscord): boolean {
+  return discord.status === 'failed' && discord.channelId !== null
 }

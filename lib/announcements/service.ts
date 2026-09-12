@@ -5,6 +5,8 @@ import type {
   Announcement,
   AnnouncementCategory,
   AnnouncementStatus,
+  DiscordNotificationStatus,
+  ManagedAnnouncement,
 } from './types'
 
 /** 一覧ページの 1 ページあたりの件数 */
@@ -25,6 +27,12 @@ export const ANNOUNCEMENTS_TAG = 'announcements'
 const SELECT_COLUMNS =
   'id, title, content, status, category, is_important, is_pinned, publish_at, created_by, created_at, updated_at'
 
+/** Discord 通知の情報は管理者向けの取得でのみ含める */
+const DISCORD_COLUMNS =
+  'discord_channel_id, discord_mention_everyone, discord_message_id, discord_notification_status, discord_notified_at, discord_notification_error'
+
+const SELECT_COLUMNS_WITH_DISCORD = `${SELECT_COLUMNS}, ${DISCORD_COLUMNS}`
+
 type AnnouncementRow = {
   id: string
   title: string
@@ -39,6 +47,17 @@ type AnnouncementRow = {
   updated_at: string
 }
 
+type DiscordRow = {
+  discord_channel_id: string | null
+  discord_mention_everyone: boolean
+  discord_message_id: string | null
+  discord_notification_status: DiscordNotificationStatus
+  discord_notified_at: string | null
+  discord_notification_error: string | null
+}
+
+type ManagedAnnouncementRow = AnnouncementRow & DiscordRow
+
 function rowToAnnouncement(row: AnnouncementRow): Announcement {
   return {
     id: row.id,
@@ -52,6 +71,20 @@ function rowToAnnouncement(row: AnnouncementRow): Announcement {
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  }
+}
+
+function rowToManagedAnnouncement(row: ManagedAnnouncementRow): ManagedAnnouncement {
+  return {
+    ...rowToAnnouncement(row),
+    discord: {
+      channelId: row.discord_channel_id,
+      mentionEveryone: row.discord_mention_everyone,
+      messageId: row.discord_message_id,
+      status: row.discord_notification_status,
+      notifiedAt: row.discord_notified_at,
+      error: row.discord_notification_error,
+    },
   }
 }
 
@@ -70,8 +103,8 @@ export type AnnouncementListParams = {
   category?: AnnouncementCategory
 }
 
-export type AnnouncementListResult = {
-  items: Announcement[]
+export type AnnouncementListResult<T extends Announcement = Announcement> = {
+  items: T[]
   total: number
   page: number
   pageSize: number
@@ -87,7 +120,10 @@ type ListOptions = AnnouncementListParams & {
   includeScheduled: boolean
 }
 
-async function listAnnouncements(options: ListOptions): Promise<AnnouncementListResult> {
+async function queryAnnouncementRows(
+  options: ListOptions,
+  columns: string
+): Promise<{ rows: unknown[]; total: number; page: number; pageSize: number }> {
   const page = Math.max(1, Math.floor(options.page ?? 1))
   const pageSize = Math.max(1, Math.floor(options.pageSize ?? ANNOUNCEMENTS_PAGE_SIZE))
   const from = (page - 1) * pageSize
@@ -95,7 +131,7 @@ async function listAnnouncements(options: ListOptions): Promise<AnnouncementList
   const admin = createAdminClient()
   let query = admin
     .from('announcements')
-    .select(SELECT_COLUMNS, { count: 'exact' })
+    .select(columns, { count: 'exact' })
     .is('deleted_at', null)
     .in('status', options.statuses)
 
@@ -118,14 +154,25 @@ async function listAnnouncements(options: ListOptions): Promise<AnnouncementList
     .range(from, from + pageSize - 1)
 
   if (error || !data) {
-    return { items: [], total: 0, page, pageSize }
+    return { rows: [], total: 0, page, pageSize }
   }
 
+  return { rows: data as unknown[], total: count ?? 0, page, pageSize }
+}
+
+async function listAnnouncements(options: ListOptions): Promise<AnnouncementListResult> {
+  const { rows, ...rest } = await queryAnnouncementRows(options, SELECT_COLUMNS)
+  return { items: (rows as AnnouncementRow[]).map(rowToAnnouncement), ...rest }
+}
+
+/** 管理者向けの取得。Discord 通知の情報を含める */
+async function listManaged(
+  options: ListOptions
+): Promise<AnnouncementListResult<ManagedAnnouncement>> {
+  const { rows, ...rest } = await queryAnnouncementRows(options, SELECT_COLUMNS_WITH_DISCORD)
   return {
-    items: (data as AnnouncementRow[]).map(rowToAnnouncement),
-    total: count ?? 0,
-    page,
-    pageSize,
+    items: (rows as ManagedAnnouncementRow[]).map(rowToManagedAnnouncement),
+    ...rest,
   }
 }
 
@@ -148,18 +195,18 @@ export type AdminListParams = AnnouncementListParams & {
 /** 管理者向けの一覧。予約投稿も含み、任意でアーカイブ済みも含める */
 export function listManagedAnnouncements(
   params: AdminListParams = {}
-): Promise<AnnouncementListResult> {
+): Promise<AnnouncementListResult<ManagedAnnouncement>> {
   const statuses: AnnouncementStatus[] = params.includeArchived
     ? ['published', 'archived']
     : ['published']
-  return listAnnouncements({ ...params, statuses, includeScheduled: true })
+  return listManaged({ ...params, statuses, includeScheduled: true })
 }
 
 /** 下書き一覧（管理者のみ） */
 export function listDraftAnnouncements(
   params: AnnouncementListParams = {}
-): Promise<AnnouncementListResult> {
-  return listAnnouncements({ ...params, statuses: ['draft'], includeScheduled: true })
+): Promise<AnnouncementListResult<ManagedAnnouncement>> {
+  return listManaged({ ...params, statuses: ['draft'], includeScheduled: true })
 }
 
 /**
@@ -207,6 +254,22 @@ export async function getAnnouncement(
   return rowToAnnouncement(data as AnnouncementRow)
 }
 
+/** 管理者向けの 1 件取得。Discord 通知の情報を含める */
+export async function getManagedAnnouncement(
+  id: string
+): Promise<ManagedAnnouncement | null> {
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('announcements')
+    .select(SELECT_COLUMNS_WITH_DISCORD)
+    .eq('id', id)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return rowToManagedAnnouncement(data as ManagedAnnouncementRow)
+}
+
 export type CreateAnnouncementInput = {
   title: string
   content: string
@@ -216,12 +279,17 @@ export type CreateAnnouncementInput = {
   isPinned?: boolean
   /** 未指定なら即時公開（現在時刻） */
   publishAt?: string
+  /** 通知先チャンネル ID。null / 未指定 = 通知しない */
+  discordChannelId?: string | null
+  discordMentionEveryone?: boolean
+  /** 作成直後の通知状態。予約投稿なら 'pending' を入れて cron に拾わせる */
+  discordNotificationStatus?: DiscordNotificationStatus
   createdBy: string
 }
 
 export async function createAnnouncement(
   input: CreateAnnouncementInput
-): Promise<Announcement | null> {
+): Promise<ManagedAnnouncement | null> {
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('announcements')
@@ -233,13 +301,16 @@ export async function createAnnouncement(
       is_important: input.isImportant ?? false,
       is_pinned: input.isPinned ?? false,
       publish_at: input.publishAt ?? new Date().toISOString(),
+      discord_channel_id: input.discordChannelId ?? null,
+      discord_mention_everyone: input.discordMentionEveryone ?? false,
+      discord_notification_status: input.discordNotificationStatus ?? 'not_sent',
       created_by: input.createdBy,
     })
-    .select(SELECT_COLUMNS)
+    .select(SELECT_COLUMNS_WITH_DISCORD)
     .single()
 
   if (error || !data) return null
-  return rowToAnnouncement(data as AnnouncementRow)
+  return rowToManagedAnnouncement(data as ManagedAnnouncementRow)
 }
 
 export type UpdateAnnouncementInput = {
@@ -250,12 +321,16 @@ export type UpdateAnnouncementInput = {
   isImportant?: boolean
   isPinned?: boolean
   publishAt?: string
+  /** null にすると「通知しない」に戻す */
+  discordChannelId?: string | null
+  discordMentionEveryone?: boolean
+  discordNotificationStatus?: DiscordNotificationStatus
 }
 
 export async function updateAnnouncement(
   id: string,
   input: UpdateAnnouncementInput
-): Promise<Announcement | null> {
+): Promise<ManagedAnnouncement | null> {
   const patch: Record<string, unknown> = {}
   if (input.title !== undefined) patch.title = input.title
   if (input.content !== undefined) patch.content = input.content
@@ -264,9 +339,16 @@ export async function updateAnnouncement(
   if (input.isImportant !== undefined) patch.is_important = input.isImportant
   if (input.isPinned !== undefined) patch.is_pinned = input.isPinned
   if (input.publishAt !== undefined) patch.publish_at = input.publishAt
+  if (input.discordChannelId !== undefined) patch.discord_channel_id = input.discordChannelId
+  if (input.discordMentionEveryone !== undefined) {
+    patch.discord_mention_everyone = input.discordMentionEveryone
+  }
+  if (input.discordNotificationStatus !== undefined) {
+    patch.discord_notification_status = input.discordNotificationStatus
+  }
 
   if (Object.keys(patch).length === 0) {
-    return getAnnouncement(id, { viewerCanManage: true })
+    return getManagedAnnouncement(id)
   }
 
   // PostgREST 経由の更新では schema.ts の $onUpdate が効かず、
@@ -279,11 +361,11 @@ export async function updateAnnouncement(
     .update(patch)
     .eq('id', id)
     .is('deleted_at', null)
-    .select(SELECT_COLUMNS)
+    .select(SELECT_COLUMNS_WITH_DISCORD)
     .maybeSingle()
 
   if (error || !data) return null
-  return rowToAnnouncement(data as AnnouncementRow)
+  return rowToManagedAnnouncement(data as ManagedAnnouncementRow)
 }
 
 /**
@@ -303,4 +385,157 @@ export async function deleteDraftAnnouncement(id: string): Promise<boolean> {
     .maybeSingle()
 
   return !error && !!data
+}
+
+// ==============================
+// Discord 通知の状態遷移
+//
+// cron の重複起動や再送ボタンの連打で二重送信しないよう、送信前に
+// 条件付き更新で「処理中(sending)」を立てて処理権を取る。更新が 0 件なら
+// 他の処理が先に取っているので何もしない。
+// 処理権を取るときは updated_at も更新する。sending のまま止まったものを
+// 時間で拾い直すのに使うため（内容変更ではないが、ここでは時刻が必要）。
+// ==============================
+
+/** 送信処理中のまま放置されたとみなすまでの時間 */
+export const DISCORD_SENDING_TIMEOUT_MS = 10 * 60 * 1000
+
+/** cron の 1 回あたりの処理件数。レート制限を避けるため少なめにする */
+export const DISCORD_CRON_BATCH_SIZE = 10
+
+/**
+ * 新規送信の処理権を取る。まだ Discord に投げていないものだけが対象。
+ * @returns 取得できたお知らせ。取れなければ null
+ */
+export async function claimAnnouncementForDiscordSend(
+  id: string
+): Promise<ManagedAnnouncement | null> {
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('announcements')
+    .update({
+      discord_notification_status: 'sending',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .in('discord_notification_status', ['pending', 'failed'])
+    .is('discord_message_id', null)
+    .not('discord_channel_id', 'is', null)
+    .select(SELECT_COLUMNS_WITH_DISCORD)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return rowToManagedAnnouncement(data as ManagedAnnouncementRow)
+}
+
+/** 送信済みメッセージを編集するための処理権を取る */
+export async function claimAnnouncementForDiscordEdit(
+  id: string
+): Promise<ManagedAnnouncement | null> {
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('announcements')
+    .update({
+      discord_notification_status: 'sending',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .in('discord_notification_status', ['sent', 'failed'])
+    .not('discord_message_id', 'is', null)
+    .select(SELECT_COLUMNS_WITH_DISCORD)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return rowToManagedAnnouncement(data as ManagedAnnouncementRow)
+}
+
+/** 送信・編集の成功を記録する。messageId は新規送信時のみ渡す */
+export async function markDiscordSent(
+  id: string,
+  { messageId }: { messageId?: string } = {}
+): Promise<void> {
+  const admin = createAdminClient()
+  await admin
+    .from('announcements')
+    .update({
+      discord_notification_status: 'sent',
+      discord_notified_at: new Date().toISOString(),
+      discord_notification_error: null,
+      ...(messageId ? { discord_message_id: messageId } : {}),
+    })
+    .eq('id', id)
+}
+
+/**
+ * 送信・編集の失敗を記録する。
+ * Discord 側でメッセージが消えている場合は messageId を外し、
+ * 次の再送で新規投稿としてやり直せるようにする。
+ */
+export async function markDiscordFailed(
+  id: string,
+  { error, clearMessageId }: { error: string; clearMessageId?: boolean }
+): Promise<void> {
+  const admin = createAdminClient()
+  await admin
+    .from('announcements')
+    .update({
+      discord_notification_status: 'failed',
+      discord_notification_error: error,
+      ...(clearMessageId ? { discord_message_id: null } : {}),
+    })
+    .eq('id', id)
+}
+
+/** 通知状態だけを更新する（予約投稿の待機化・通知しないへの戻しなど） */
+export async function setDiscordNotificationStatus(
+  id: string,
+  status: DiscordNotificationStatus
+): Promise<void> {
+  const admin = createAdminClient()
+  await admin
+    .from('announcements')
+    .update({ discord_notification_status: status })
+    .eq('id', id)
+}
+
+/** 公開時刻に到達した送信待ちのお知らせ（cron 用） */
+export async function listAnnouncementsPendingDiscord(
+  limit: number = DISCORD_CRON_BATCH_SIZE
+): Promise<ManagedAnnouncement[]> {
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('announcements')
+    .select(SELECT_COLUMNS_WITH_DISCORD)
+    .is('deleted_at', null)
+    .eq('status', 'published')
+    .eq('discord_notification_status', 'pending')
+    .not('discord_channel_id', 'is', null)
+    .lte('publish_at', new Date().toISOString())
+    .order('publish_at', { ascending: true })
+    .limit(limit)
+
+  if (error || !data) return []
+  return (data as ManagedAnnouncementRow[]).map(rowToManagedAnnouncement)
+}
+
+/**
+ * 送信処理中のまま止まったものを失敗に戻す（cron の先頭で実行する）。
+ * プロセスが落ちた場合などに sending のまま残り続けるのを防ぐ。
+ * @returns 戻した件数
+ */
+export async function recoverStuckDiscordSending(): Promise<number> {
+  const threshold = new Date(Date.now() - DISCORD_SENDING_TIMEOUT_MS).toISOString()
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('announcements')
+    .update({
+      discord_notification_status: 'failed',
+      discord_notification_error: 'timeout: 送信処理が完了しませんでした',
+    })
+    .eq('discord_notification_status', 'sending')
+    .lte('updated_at', threshold)
+    .select('id')
+
+  if (error || !data) return 0
+  return data.length
 }
