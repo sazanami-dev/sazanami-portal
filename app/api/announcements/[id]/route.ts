@@ -8,18 +8,27 @@ import {
 import {
   deleteDraftAnnouncement,
   getAnnouncement,
+  getManagedAnnouncement,
   revalidateAnnouncements,
   updateAnnouncement,
   type UpdateAnnouncementInput,
 } from '@/lib/announcements/service'
 import {
+  editAnnouncementOnDiscord,
+  isDueForDiscord,
+  resolveDiscordStatusAfterSave,
+  sendAnnouncementToDiscord,
+} from '@/lib/announcements/discord'
+import {
   optionalBoolean,
   validateCategory,
   validateContent,
+  validateDiscordChannelId,
   validatePublishAt,
   validateTitle,
   validateUpdateStatus,
 } from '@/lib/announcements/validation'
+import { isAllowedAnnounceChannelId } from '@/lib/discord/announce-channels'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -37,9 +46,9 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
 
-  const announcement = await getAnnouncement(id, {
-    viewerCanManage: canManageAnnouncements(ctx.role),
-  })
+  const announcement = canManageAnnouncements(ctx.role)
+    ? await getManagedAnnouncement(id)
+    : await getAnnouncement(id, { viewerCanManage: false })
   if (!announcement) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
   }
@@ -61,7 +70,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
 
-  const existing = await getAnnouncement(id, { viewerCanManage: true })
+  const existing = await getManagedAnnouncement(id)
   if (!existing) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
   }
@@ -71,8 +80,17 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 })
   }
 
-  const { title, content, status, category, isImportant, isPinned, publishAt } =
-    body as Record<string, unknown>
+  const {
+    title,
+    content,
+    status,
+    category,
+    isImportant,
+    isPinned,
+    publishAt,
+    discordChannelId,
+    discordMentionEveryone,
+  } = body as Record<string, unknown>
 
   const patch: UpdateAnnouncementInput = {}
 
@@ -107,13 +125,63 @@ export async function PATCH(request: Request, context: RouteContext) {
   const pinned = optionalBoolean(isPinned)
   if (pinned !== undefined) patch.isPinned = pinned
 
+  if (discordChannelId !== undefined) {
+    const result = validateDiscordChannelId(discordChannelId, isAllowedAnnounceChannelId)
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 })
+
+    // 送信済みのメッセージは別チャンネルへ移動できない。
+    // 変更を許すと旧チャンネルに残したまま二重掲載になるため拒否する。
+    if (existing.discord.messageId && result.value !== existing.discord.channelId) {
+      return NextResponse.json({ error: 'discord_channel_locked' }, { status: 409 })
+    }
+    patch.discordChannelId = result.value
+  }
+
+  const mentionEveryone = optionalBoolean(discordMentionEveryone)
+  if (mentionEveryone !== undefined) patch.discordMentionEveryone = mentionEveryone
+
+  // 更新後の状態から通知ステータスを決める（送信済み・失敗は触らない）
+  const nextDiscordStatus = resolveDiscordStatusAfterSave({
+    status: patch.status ?? existing.status,
+    channelId:
+      patch.discordChannelId !== undefined
+        ? patch.discordChannelId
+        : existing.discord.channelId,
+    current: existing.discord.status,
+  })
+  if (nextDiscordStatus) patch.discordNotificationStatus = nextDiscordStatus
+
   const announcement = await updateAnnouncement(id, patch)
   if (!announcement) {
     return NextResponse.json({ error: 'update_failed' }, { status: 500 })
   }
 
   revalidateAnnouncements()
-  return NextResponse.json({ announcement })
+
+  // Discord に出ている内容が変わる更新か（メンションの有無も本文に出る）
+  const messageChanged = (
+    [
+      ['title', patch.title, existing.title],
+      ['content', patch.content, existing.content],
+      ['category', patch.category, existing.category],
+      ['isImportant', patch.isImportant, existing.isImportant],
+      ['mention', patch.discordMentionEveryone, existing.discord.mentionEveryone],
+    ] as const
+  ).some(([, next, current]) => next !== undefined && next !== current)
+
+  // 通知はベストエフォート。失敗しても更新自体は成功として返す
+  if (announcement.discord.messageId) {
+    if (messageChanged) await editAnnouncementOnDiscord(id)
+  } else if (
+    announcement.discord.status === 'pending' &&
+    isDueForDiscord(announcement.publishAt)
+  ) {
+    // 下書きの公開や、予約日時を過去に変更した場合はこの場で送信する
+    await sendAnnouncementToDiscord(id)
+  }
+
+  const latest = await getManagedAnnouncement(id)
+  return NextResponse.json({ announcement: latest ?? announcement })
 }
 
 /** 論理削除。設計どおり下書きのみ削除できる。manager 以上のみ */
@@ -130,7 +198,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
 
-  const existing = await getAnnouncement(id, { viewerCanManage: true })
+  const existing = await getManagedAnnouncement(id)
   if (!existing) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
   }
