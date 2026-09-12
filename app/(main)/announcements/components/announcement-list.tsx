@@ -24,10 +24,12 @@ import {
   isScheduled,
   type Announcement,
   type AnnouncementCategory,
+  type AnnouncementListItem,
 } from '@/lib/announcements/types'
 
 import {
   CategoryBadge,
+  DiscordStatusBadge,
   ImportantBadge,
   PinnedBadge,
   StateBadge,
@@ -40,7 +42,7 @@ const ALL_CATEGORIES = 'all'
 type View = 'list' | 'drafts'
 
 type ListResponse = {
-  items: Announcement[]
+  items: AnnouncementListItem[]
   total: number
   page: number
   pageSize: number
@@ -60,9 +62,9 @@ export function AnnouncementList({ canManage }: { canManage: boolean }) {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
 
-  const [selected, setSelected] = useState<Announcement | null>(null)
+  const [selected, setSelected] = useState<AnnouncementListItem | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
-  const [editing, setEditing] = useState<Announcement | null>(null)
+  const [editing, setEditing] = useState<AnnouncementListItem | null>(null)
 
   // 入力のたびに問い合わせないよう、検索語だけ遅らせて反映する
   useEffect(() => {
@@ -121,7 +123,7 @@ export function AnnouncementList({ canManage }: { canManage: boolean }) {
     if (res.ok) void load()
   }
 
-  function openEditor(announcement: Announcement | null) {
+  function openEditor(announcement: AnnouncementListItem | null) {
     setEditing(announcement)
     setEditorOpen(true)
   }
@@ -260,6 +262,10 @@ export function AnnouncementList({ canManage }: { canManage: boolean }) {
                         <StateBadge label="アーカイブ" />
                       )}
                       {announcement.status === 'draft' && <StateBadge label="下書き" />}
+                      {/* Discord の送信状態は管理者にだけ見せる */}
+                      {canManage && announcement.discord && (
+                        <DiscordStatusBadge status={announcement.discord.status} />
+                      )}
                     </div>
                     {/*
                       ::before で行全体を覆い、カードのどこを押しても開くようにする。
