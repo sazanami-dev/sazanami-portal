@@ -141,6 +141,8 @@ export function AnnouncementEditor({
 
   // Discord 関連
   const [channels, setChannels] = useState<ChannelsResponse | null>(null)
+  /** 取得が終わるまで保存させない（通知ONのまま送信先が空で保存されるのを防ぐ） */
+  const [channelsLoaded, setChannelsLoaded] = useState(false)
   const [discordEnabled, setDiscordEnabled] = useState(true)
   const [channelId, setChannelId] = useState<string | null>(null)
   const [mentionEveryone, setMentionEveryone] = useState(false)
@@ -188,6 +190,7 @@ export function AnnouncementEditor({
   useEffect(() => {
     if (!open) return
     let aborted = false
+    setChannelsLoaded(false)
     void (async () => {
       try {
         const res = await fetch('/api/announcements/discord/channels')
@@ -195,7 +198,9 @@ export function AnnouncementEditor({
         const data = (await res.json()) as ChannelsResponse
         if (!aborted) setChannels(data)
       } catch {
-        // 取得できなければ Discord セクションを無効表示にするだけでよい
+        // 取得できなければ Discord セクションを未設定として扱う
+      } finally {
+        if (!aborted) setChannelsLoaded(true)
       }
     })()
     return () => {
@@ -487,7 +492,7 @@ export function AnnouncementEditor({
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={!canProceed || submitting}
+                  disabled={!canProceed || submitting || !channelsLoaded}
                   onClick={saveDraft}
                 >
                   {isScheduledPost ? '下書きにする' : '下書きを保存'}
@@ -595,7 +600,11 @@ export function AnnouncementEditor({
             <section className="space-y-3">
               <h3 className="text-sm font-semibold">Discord</h3>
 
-              {!hasChannels ? (
+              {!channelsLoaded ? (
+                <p className="text-sm text-muted-foreground">
+                  通知先を読み込んでいます...
+                </p>
+              ) : !hasChannels ? (
                 <p className="text-sm text-muted-foreground">
                   Discord 連携が未設定です
                 </p>
@@ -747,7 +756,11 @@ export function AnnouncementEditor({
               <Button type="button" variant="outline" onClick={() => setStep(1)}>
                 戻る
               </Button>
-              <Button type="button" disabled={!canProceed || submitting} onClick={handlePublishClick}>
+              <Button
+                type="button"
+                disabled={!canProceed || submitting || !channelsLoaded}
+                onClick={handlePublishClick}
+              >
                 {isEdit && !isDraft ? '更新' : '投稿'}
               </Button>
             </DialogFooter>

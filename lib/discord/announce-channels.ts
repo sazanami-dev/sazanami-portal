@@ -88,10 +88,3 @@ export function defaultAnnounceChannelIdByCategory(): Record<
     entries.map(([category, key]) => [category, readChannel(key)?.id ?? null])
   ) as Record<AnnouncementCategory, string | null>
 }
-
-/** Discord 上のメッセージへのリンク。guild ID が未設定なら null */
-export function discordMessageUrl(channelId: string, messageId: string): string | null {
-  const guildId = process.env.DISCORD_GUILD_ID?.trim()
-  if (!guildId) return null
-  return `https://discord.com/channels/${guildId}/${channelId}/${messageId}`
-}

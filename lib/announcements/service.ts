@@ -486,18 +486,6 @@ export async function markDiscordFailed(
     .eq('id', id)
 }
 
-/** 通知状態だけを更新する（予約投稿の待機化・通知しないへの戻しなど） */
-export async function setDiscordNotificationStatus(
-  id: string,
-  status: DiscordNotificationStatus
-): Promise<void> {
-  const admin = createAdminClient()
-  await admin
-    .from('announcements')
-    .update({ discord_notification_status: status })
-    .eq('id', id)
-}
-
 /** 公開時刻に到達した送信待ちのお知らせ（cron 用） */
 export async function listAnnouncementsPendingDiscord(
   limit: number = DISCORD_CRON_BATCH_SIZE
