@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -141,8 +141,10 @@ export function AnnouncementEditor({
 
   // Discord 関連
   const [channels, setChannels] = useState<ChannelsResponse | null>(null)
-  /** 取得が終わるまで保存させない（通知ONのまま送信先が空で保存されるのを防ぐ） */
+  /** 取得が終わるまでは「未設定」と区別して読み込み中と表示する */
   const [channelsLoaded, setChannelsLoaded] = useState(false)
+  /** 取得中に投稿されたときに待ち合わせるためのリクエスト */
+  const channelsRequest = useRef<Promise<ChannelsResponse | null> | null>(null)
   const [discordEnabled, setDiscordEnabled] = useState(true)
   const [channelId, setChannelId] = useState<string | null>(null)
   const [mentionEveryone, setMentionEveryone] = useState(false)
@@ -191,18 +193,22 @@ export function AnnouncementEditor({
     if (!open) return
     let aborted = false
     setChannelsLoaded(false)
-    void (async () => {
+    const request = (async (): Promise<ChannelsResponse | null> => {
       try {
         const res = await fetch('/api/announcements/discord/channels')
-        if (!res.ok) return
-        const data = (await res.json()) as ChannelsResponse
-        if (!aborted) setChannels(data)
+        if (!res.ok) return null
+        return (await res.json()) as ChannelsResponse
       } catch {
         // 取得できなければ Discord セクションを未設定として扱う
-      } finally {
-        if (!aborted) setChannelsLoaded(true)
+        return null
       }
     })()
+    channelsRequest.current = request
+    void request.then((data) => {
+      if (aborted) return
+      if (data) setChannels(data)
+      setChannelsLoaded(true)
+    })
     return () => {
       aborted = true
     }
@@ -314,37 +320,43 @@ export function AnnouncementEditor({
   }
 
   /** Discord 設定。下書きでも保存しておき、公開時にそのまま使う */
-  function discordPayload(): Record<string, unknown> {
+  async function discordPayload(): Promise<Record<string, unknown>> {
+    // 選択肢の取得が終わる前に投稿された場合でも、
+    // 既定の通知先を取りこぼさないよう待ってから決める
+    const loaded = channels ?? (await channelsRequest.current)
+    const resolvedChannelId =
+      channelId ?? (channelTouched ? null : (loaded?.defaultByCategory[category] ?? null))
+
     const payload: Record<string, unknown> = {
       discordMentionEveryone: discordEnabled && mentionEveryone,
     }
     // 送信済みのチャンネルは変更できないため、そもそも送らない
     if (!discord?.messageId) {
-      payload.discordChannelId = discordEnabled ? channelId : null
+      payload.discordChannelId = discordEnabled ? resolvedChannelId : null
     }
     return payload
   }
 
-  function saveDraft() {
+  async function saveDraft() {
     const message = stepOneError()
     if (message) {
       setError(message)
       return
     }
-    void submit({
+    await submit({
       title,
       content,
       category,
       isImportant,
       status: 'draft',
-      ...discordPayload(),
+      ...(await discordPayload()),
     })
   }
 
-  function publish() {
+  async function publish() {
     if (!canChooseSchedule) {
       // 公開済み・アーカイブ済みの編集では、ステータスと公開日時は変更しない
-      void submit({ title, content, category, isImportant, ...discordPayload() })
+      await submit({ title, content, category, isImportant, ...(await discordPayload()) })
       return
     }
 
@@ -358,14 +370,14 @@ export function AnnouncementEditor({
       setError('公開日時には未来の日時を指定してください')
       return
     }
-    void submit({
+    await submit({
       title,
       content,
       category,
       isImportant,
       status: 'published',
       ...(publishAt ? { publishAt } : {}),
-      ...discordPayload(),
+      ...(await discordPayload()),
     })
   }
 
@@ -373,7 +385,7 @@ export function AnnouncementEditor({
     // 即時公開は取り消せないため確認を挟む。
     // 予約投稿でも、指定時刻が現在の分なら実質その場で公開されるので確認する。
     if (canChooseSchedule && publishMode === 'scheduled' && isFutureLocalValue(publishAtLocal)) {
-      publish()
+      void publish()
       return
     }
     setConfirming(true)
@@ -492,8 +504,8 @@ export function AnnouncementEditor({
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={!canProceed || submitting || !channelsLoaded}
-                  onClick={saveDraft}
+                  disabled={!canProceed || submitting}
+                  onClick={() => void saveDraft()}
                 >
                   {isScheduledPost ? '下書きにする' : '下書きを保存'}
                 </Button>
@@ -590,8 +602,7 @@ export function AnnouncementEditor({
                     {isArchived ? 'アーカイブを解除' : 'アーカイブする'}
                   </Button>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    アーカイブすると一般ユーザーの画面から見えなくなります（Discord
-                    の投稿は削除されません）
+                    アーカイブすると一般ユーザーの画面から見えなくなります
                   </p>
                 </div>
               )}
@@ -756,11 +767,7 @@ export function AnnouncementEditor({
               <Button type="button" variant="outline" onClick={() => setStep(1)}>
                 戻る
               </Button>
-              <Button
-                type="button"
-                disabled={!canProceed || submitting || !channelsLoaded}
-                onClick={handlePublishClick}
-              >
+              <Button type="button" disabled={!canProceed || submitting} onClick={handlePublishClick}>
                 {isEdit && !isDraft ? '更新' : '投稿'}
               </Button>
             </DialogFooter>
@@ -804,7 +811,7 @@ export function AnnouncementEditor({
               >
                 戻る
               </Button>
-              <Button type="button" disabled={submitting} onClick={publish}>
+              <Button type="button" disabled={submitting} onClick={() => void publish()}>
                 {submitting ? '送信中...' : canChooseSchedule ? '公開する' : '更新する'}
               </Button>
             </DialogFooter>
