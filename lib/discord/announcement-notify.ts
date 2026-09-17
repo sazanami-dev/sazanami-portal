@@ -24,6 +24,8 @@ export type DiscordSendFailure = {
   detail: string
   /** 対象メッセージが Discord 上に存在しない（手動削除された等） */
   messageMissing?: boolean
+  /** レート制限に当たった。呼び出し側は続けて投げない */
+  rateLimited?: boolean
 }
 export type DiscordSendResult = DiscordSendSuccess | DiscordSendFailure
 
@@ -76,7 +78,12 @@ async function failureFromResponse(res: Response): Promise<DiscordSendFailure> {
     }
   })()
 
-  return code === 10008 ? { ok: false, detail, messageMissing: true } : { ok: false, detail }
+  return {
+    ok: false,
+    detail,
+    ...(code === 10008 ? { messageMissing: true } : {}),
+    ...(res.status === 429 ? { rateLimited: true } : {}),
+  }
 }
 
 function failureFromError(error: unknown): DiscordSendFailure {
@@ -146,6 +153,75 @@ export async function editAnnouncementMessage({
 
     if (!res.ok) return await failureFromResponse(res)
     return { ok: true }
+  } catch (error) {
+    return failureFromError(error)
+  }
+}
+
+/** Bot 自身のユーザー ID。毎回問い合わせないよう覚えておく */
+let cachedBotUserId: string | null = null
+
+async function botUserId(botToken: string): Promise<string | null> {
+  if (cachedBotUserId) return cachedBotUserId
+  try {
+    const res = await fetch(`${API_BASE}/users/@me`, {
+      headers: headers(botToken),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    })
+    if (!res.ok) return null
+    const json = (await res.json()) as { id?: unknown }
+    cachedBotUserId = typeof json.id === 'string' ? json.id : null
+    return cachedBotUserId
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Bot 自身が最近そのチャンネルへ投稿したメッセージを内容で探す。
+ *
+ * 送信は成功したのに結果を記録できなかった場合、そのまま再送すると
+ * 二重投稿になる。再送の前にここで実際の投稿を探し、見つかれば
+ * そのメッセージ ID を引き継いで編集に切り替えるために使う。
+ */
+export async function findRecentBotMessage({
+  botToken,
+  channelId,
+  contains,
+  limit = 50,
+}: {
+  botToken: string
+  channelId: string
+  /** メッセージ本文に含まれるはずの文字列（お知らせのタイトル行など） */
+  contains: string
+  limit?: number
+}): Promise<{ ok: true; messageId: string | null } | DiscordSendFailure> {
+  const selfId = await botUserId(botToken)
+
+  try {
+    const res = await fetch(
+      `${API_BASE}/channels/${channelId}/messages?limit=${limit}`,
+      { headers: headers(botToken), signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }
+    )
+    if (!res.ok) return await failureFromResponse(res)
+
+    const messages = (await res.json()) as {
+      id?: unknown
+      content?: unknown
+      author?: { id?: unknown }
+    }[]
+
+    const found = messages.find(
+      (message) =>
+        typeof message.content === 'string' &&
+        message.content.includes(contains) &&
+        (selfId === null || message.author?.id === selfId)
+    )
+
+    return {
+      ok: true,
+      messageId: typeof found?.id === 'string' ? found.id : null,
+    }
   } catch (error) {
     return failureFromError(error)
   }

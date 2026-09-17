@@ -10,6 +10,7 @@
 
 import {
   editAnnouncementMessage,
+  findRecentBotMessage,
   sendAnnouncementMessage,
 } from '@/lib/discord/announcement-notify'
 import { buildAnnouncementMessage } from '@/lib/discord/announcement-message'
@@ -17,10 +18,11 @@ import { buildAnnouncementMessage } from '@/lib/discord/announcement-message'
 import {
   claimAnnouncementForDiscordEdit,
   claimAnnouncementForDiscordSend,
+  getManagedAnnouncement,
   listAnnouncementsPendingDiscord,
+  listStuckDiscordSending,
   markDiscordFailed,
   markDiscordSent,
-  recoverStuckDiscordSending,
   DISCORD_CRON_BATCH_SIZE,
 } from './service'
 import type { AnnouncementStatus, DiscordNotificationStatus, ManagedAnnouncement } from './types'
@@ -31,6 +33,33 @@ import type { AnnouncementStatus, DiscordNotificationStatus, ManagedAnnouncement
  * - `skipped`: 対象外、または他の処理が先に処理権を取った
  */
 export type DiscordNotifyOutcome = 'sent' | 'failed' | 'skipped'
+
+export type DiscordNotifyResult = {
+  outcome: DiscordNotifyOutcome
+  /** レート制限に当たった。まとめて処理する側はこの回を打ち切る */
+  rateLimited: boolean
+}
+
+const skipped: DiscordNotifyResult = { outcome: 'skipped', rateLimited: false }
+
+/** Discord のチャンネルあたりの制限（概ね 5 件/5 秒）に触れないための間隔 */
+const SEND_INTERVAL_MS = 1200
+
+/**
+ * cron の 1 回あたりの上限時間。
+ * 呼び出し元（bot）のタイムアウトより短くし、応答が返らないまま
+ * 次の実行が重なるのを防ぐ。残りは次回に回す。
+ */
+const CRON_DEADLINE_MS = 40_000
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/** メッセージの照合に使う、お知らせを一意に見分けられる文字列 */
+function messageMarker(title: string): string {
+  return `【${title.trim()}】`
+}
 
 function botToken(): string | null {
   return process.env.DISCORD_BOT_TOKEN?.trim() || null
@@ -88,14 +117,14 @@ export function isDueForDiscord(publishAt: string, now: Date = new Date()): bool
  */
 export async function sendAnnouncementToDiscord(
   id: string
-): Promise<DiscordNotifyOutcome> {
+): Promise<DiscordNotifyResult> {
   const claimed = await claimAnnouncementForDiscordSend(id)
-  if (!claimed || !claimed.discord.channelId) return 'skipped'
+  if (!claimed || !claimed.discord.channelId) return skipped
 
   const token = botToken()
   if (!token) {
     await markDiscordFailed(id, { error: 'DISCORD_BOT_TOKEN が設定されていません' })
-    return 'failed'
+    return { outcome: 'failed', rateLimited: false }
   }
 
   const result = await sendAnnouncementMessage({
@@ -109,11 +138,27 @@ export async function sendAnnouncementToDiscord(
 
   if (!result.ok) {
     await markDiscordFailed(id, { error: result.detail })
-    return 'failed'
+    return { outcome: 'failed', rateLimited: result.rateLimited === true }
   }
 
-  await markDiscordSent(id, { messageId: result.messageId })
-  return 'sent'
+  const recorded = await markDiscordSent(id, { messageId: result.messageId })
+  if (!recorded) {
+    // 投稿はできているので、記録できなかったことをログに残す。
+    // sending のまま残り、次回の cron が実際の投稿を探して引き継ぐ。
+    console.error(
+      `[announcements] Discord へ投稿したが記録できませんでした: id=${id} messageId=${result.messageId}`
+    )
+    return { outcome: 'sent', rateLimited: false }
+  }
+
+  // 送信している間にお知らせが更新されていたら、投稿を最新の内容に揃える。
+  // claim 時に updated_at を更新しているので、変化していれば更新があったとわかる。
+  const latest = await getManagedAnnouncement(id)
+  if (latest && latest.updatedAt !== claimed.updatedAt) {
+    await editAnnouncementOnDiscord(id)
+  }
+
+  return { outcome: 'sent', rateLimited: false }
 }
 
 /**
@@ -123,14 +168,14 @@ export async function sendAnnouncementToDiscord(
  */
 export async function editAnnouncementOnDiscord(
   id: string
-): Promise<DiscordNotifyOutcome> {
+): Promise<DiscordNotifyResult> {
   const claimed = await claimAnnouncementForDiscordEdit(id)
-  if (!claimed || !claimed.discord.channelId || !claimed.discord.messageId) return 'skipped'
+  if (!claimed || !claimed.discord.channelId || !claimed.discord.messageId) return skipped
 
   const token = botToken()
   if (!token) {
     await markDiscordFailed(id, { error: 'DISCORD_BOT_TOKEN が設定されていません' })
-    return 'failed'
+    return { outcome: 'failed', rateLimited: false }
   }
 
   const result = await editAnnouncementMessage({
@@ -148,57 +193,138 @@ export async function editAnnouncementOnDiscord(
         : result.detail,
       clearMessageId: result.messageMissing,
     })
-    return 'failed'
+    return { outcome: 'failed', rateLimited: result.rateLimited === true }
   }
 
   await markDiscordSent(id)
-  return 'sent'
+  return { outcome: 'sent', rateLimited: false }
+}
+
+/**
+ * 記録に残っていないだけで Discord にはすでに投稿済み、という状態を拾う。
+ *
+ * 送信は成功したのに記録の書き込みに失敗した場合や、記録前にプロセスが
+ * 落ちた場合に起こる。そのまま再送すると二重投稿になるため、チャンネルの
+ * 直近メッセージから同じお知らせの投稿を探し、見つかったら引き継ぐ。
+ *
+ * @returns 引き継げたか
+ */
+async function adoptExistingMessage(announcement: ManagedAnnouncement): Promise<boolean> {
+  const token = botToken()
+  const channelId = announcement.discord.channelId
+  if (!token || !channelId) return false
+
+  const found = await findRecentBotMessage({
+    botToken: token,
+    channelId,
+    contains: messageMarker(announcement.title),
+  })
+
+  if (!found.ok || !found.messageId) return false
+
+  await markDiscordSent(announcement.id, { messageId: found.messageId })
+  return true
 }
 
 /**
  * 手動再送。未送信なら新規送信、送信済みなら編集としてやり直す。
  * 送信処理中のものは処理権が取れないため 'skipped' になる。
  */
-export function resendAnnouncementToDiscord(
+export async function resendAnnouncementToDiscord(
   announcement: ManagedAnnouncement
-): Promise<DiscordNotifyOutcome> {
-  return announcement.discord.messageId
-    ? editAnnouncementOnDiscord(announcement.id)
-    : sendAnnouncementToDiscord(announcement.id)
+): Promise<DiscordNotifyResult> {
+  if (announcement.discord.messageId) {
+    return editAnnouncementOnDiscord(announcement.id)
+  }
+
+  // 記録できなかっただけで投稿は済んでいることがある。
+  // そのまま送ると二重投稿になるため、先に実際の投稿を探す。
+  const adopted = await adoptExistingMessage(announcement)
+  if (adopted) return { outcome: 'sent', rateLimited: false }
+
+  return sendAnnouncementToDiscord(announcement.id)
 }
 
 export type DiscordCronSummary = {
-  /** 送信処理中のまま止まっていて失敗に戻した件数 */
+  /** 送信処理中のまま止まっていて片付けた件数 */
   recovered: number
   processed: number
   sent: number
   failed: number
   skipped: number
+  /** レート制限や時間切れで次回に回した件数 */
+  deferred: number
+}
+
+/**
+ * 送信処理中のまま止まったものを片付ける。
+ *
+ * 実際に投稿されていればその投稿を引き継いで送信済みにし、
+ * 見つからなければ失敗として再送できる状態に戻す。
+ * @returns 片付けた件数
+ */
+async function recoverStuckAnnouncements(): Promise<number> {
+  const stuck = await listStuckDiscordSending()
+
+  for (const announcement of stuck) {
+    // 編集の途中で止まったものは投稿自体が残っているので、失敗に戻すだけでよい
+    const adopted = announcement.discord.messageId
+      ? false
+      : await adoptExistingMessage(announcement)
+    if (adopted) continue
+
+    await markDiscordFailed(announcement.id, {
+      error: announcement.discord.messageId
+        ? 'timeout: 送信処理が完了しませんでした'
+        : 'timeout: 送信処理が完了しませんでした（投稿は見つからなかったため未送信として扱います）',
+    })
+  }
+
+  return stuck.length
 }
 
 /**
  * 公開時刻に到達した予約投稿を送信する（cron から呼ぶ）。
- * レート制限を避けるため、件数を絞って逐次送信する。
+ *
+ * レート制限を避けるため、件数を絞って間隔を空けながら逐次送信する。
+ * 制限に当たった場合と、1 回あたりの上限時間を超えた場合は打ち切り、
+ * 残りは次回の実行に回す。
  */
 export async function processPendingDiscordNotifications(
   limit: number = DISCORD_CRON_BATCH_SIZE
 ): Promise<DiscordCronSummary> {
-  const recovered = await recoverStuckDiscordSending()
+  const startedAt = Date.now()
+  const recovered = await recoverStuckAnnouncements()
   const pending = await listAnnouncementsPendingDiscord(limit)
 
   const summary: DiscordCronSummary = {
     recovered,
-    processed: pending.length,
+    processed: 0,
     sent: 0,
     failed: 0,
     skipped: 0,
+    deferred: 0,
   }
 
-  for (const announcement of pending) {
-    const outcome = await sendAnnouncementToDiscord(announcement.id)
-    if (outcome === 'sent') summary.sent += 1
-    else if (outcome === 'failed') summary.failed += 1
+  for (const [index, announcement] of pending.entries()) {
+    if (Date.now() - startedAt > CRON_DEADLINE_MS) {
+      summary.deferred = pending.length - index
+      break
+    }
+    // 1 件目は待たずに送る
+    if (index > 0) await wait(SEND_INTERVAL_MS)
+
+    const result = await sendAnnouncementToDiscord(announcement.id)
+    summary.processed += 1
+    if (result.outcome === 'sent') summary.sent += 1
+    else if (result.outcome === 'failed') summary.failed += 1
     else summary.skipped += 1
+
+    if (result.rateLimited) {
+      // 続けて投げても失敗するだけなので、残りは次回に回す
+      summary.deferred = pending.length - (index + 1)
+      break
+    }
   }
 
   return summary

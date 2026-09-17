@@ -37,12 +37,15 @@ export async function POST(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'not_resendable' }, { status: 409 })
   }
 
-  const outcome = await resendAnnouncementToDiscord(existing)
-  if (outcome === 'skipped') {
+  const result = await resendAnnouncementToDiscord(existing)
+  if (result.outcome === 'skipped') {
     // 直前に他の処理が処理権を取った
     return NextResponse.json({ error: 'sending_in_progress' }, { status: 409 })
   }
 
   const latest = await getManagedAnnouncement(id)
-  return NextResponse.json({ discord: latest?.discord ?? existing.discord, outcome })
+  return NextResponse.json({
+    discord: latest?.discord ?? existing.discord,
+    outcome: result.outcome,
+  })
 }

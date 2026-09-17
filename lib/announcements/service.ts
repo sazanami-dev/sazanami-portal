@@ -449,21 +449,42 @@ export async function claimAnnouncementForDiscordEdit(
   return rowToManagedAnnouncement(data as ManagedAnnouncementRow)
 }
 
+/**
+ * 通知状態の書き込み。
+ *
+ * ここでの書き込みに失敗すると「Discord には投稿したのに記録が残らない」
+ * 状態になり、後の再送で二重投稿を招く。数回だけ再試行する。
+ * @returns 書き込めたか
+ */
+async function writeDiscordState(
+  id: string,
+  patch: Record<string, unknown>,
+  attempts = 3
+): Promise<boolean> {
+  const admin = createAdminClient()
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const { error } = await admin.from('announcements').update(patch).eq('id', id)
+    if (!error) return true
+    console.error(
+      `[announcements] Discord 通知状態の書き込みに失敗 (${attempt}/${attempts}):`,
+      error.message
+    )
+    if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 300 * attempt))
+  }
+  return false
+}
+
 /** 送信・編集の成功を記録する。messageId は新規送信時のみ渡す */
 export async function markDiscordSent(
   id: string,
   { messageId }: { messageId?: string } = {}
-): Promise<void> {
-  const admin = createAdminClient()
-  await admin
-    .from('announcements')
-    .update({
-      discord_notification_status: 'sent',
-      discord_notified_at: new Date().toISOString(),
-      discord_notification_error: null,
-      ...(messageId ? { discord_message_id: messageId } : {}),
-    })
-    .eq('id', id)
+): Promise<boolean> {
+  return writeDiscordState(id, {
+    discord_notification_status: 'sent',
+    discord_notified_at: new Date().toISOString(),
+    discord_notification_error: null,
+    ...(messageId ? { discord_message_id: messageId } : {}),
+  })
 }
 
 /**
@@ -474,16 +495,12 @@ export async function markDiscordSent(
 export async function markDiscordFailed(
   id: string,
   { error, clearMessageId }: { error: string; clearMessageId?: boolean }
-): Promise<void> {
-  const admin = createAdminClient()
-  await admin
-    .from('announcements')
-    .update({
-      discord_notification_status: 'failed',
-      discord_notification_error: error,
-      ...(clearMessageId ? { discord_message_id: null } : {}),
-    })
-    .eq('id', id)
+): Promise<boolean> {
+  return writeDiscordState(id, {
+    discord_notification_status: 'failed',
+    discord_notification_error: error,
+    ...(clearMessageId ? { discord_message_id: null } : {}),
+  })
 }
 
 /** 公開時刻に到達した送信待ちのお知らせ（cron 用） */
@@ -507,23 +524,19 @@ export async function listAnnouncementsPendingDiscord(
 }
 
 /**
- * 送信処理中のまま止まったものを失敗に戻す（cron の先頭で実行する）。
+ * 送信処理中のまま止まったお知らせ（cron の先頭で拾い直す対象）。
  * プロセスが落ちた場合などに sending のまま残り続けるのを防ぐ。
- * @returns 戻した件数
  */
-export async function recoverStuckDiscordSending(): Promise<number> {
+export async function listStuckDiscordSending(): Promise<ManagedAnnouncement[]> {
   const threshold = new Date(Date.now() - DISCORD_SENDING_TIMEOUT_MS).toISOString()
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('announcements')
-    .update({
-      discord_notification_status: 'failed',
-      discord_notification_error: 'timeout: 送信処理が完了しませんでした',
-    })
+    .select(SELECT_COLUMNS_WITH_DISCORD)
     .eq('discord_notification_status', 'sending')
     .lte('updated_at', threshold)
-    .select('id')
+    .limit(DISCORD_CRON_BATCH_SIZE)
 
-  if (error || !data) return 0
-  return data.length
+  if (error || !data) return []
+  return (data as ManagedAnnouncementRow[]).map(rowToManagedAnnouncement)
 }
