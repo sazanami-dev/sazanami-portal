@@ -206,6 +206,7 @@ export async function editAnnouncementOnDiscord(
  * 送信は成功したのに記録の書き込みに失敗した場合や、記録前にプロセスが
  * 落ちた場合に起こる。そのまま再送すると二重投稿になるため、チャンネルの
  * 直近メッセージから同じお知らせの投稿を探し、見つかったら引き継ぐ。
+ * 同じタイトルの過去の投稿を拾わないよう、送信を始めた時刻より後に限る。
  *
  * @returns 引き継げたか
  */
@@ -218,6 +219,9 @@ async function adoptExistingMessage(announcement: ManagedAnnouncement): Promise<
     botToken: token,
     channelId,
     contains: messageMarker(announcement.title),
+    // 処理権を取った時点で updated_at を更新しているので、
+    // 投稿があったとすればその時刻より後になる
+    sentAfter: new Date(announcement.updatedAt),
   })
 
   if (!found.ok || !found.messageId) return false
