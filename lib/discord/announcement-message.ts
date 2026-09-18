@@ -17,7 +17,23 @@ export const DISCORD_CONTENT_MAX_LENGTH = 2000
 /** 本文に割り当てる上限。残りはタイトル行とフッタに使う */
 export const DISCORD_BODY_MAX_LENGTH = 1700
 
+/** UUID の文字数。ID が未確定のときも同じ長さを見込んで本文の上限を決める */
+const ANNOUNCEMENT_ID_LENGTH = 36
+
+/**
+ * 投稿をお知らせと結びつけるための印。
+ *
+ * 送信は成功したのに記録できなかった場合、この印でチャンネルから
+ * 自分の投稿を探し出して引き継ぐ。タイトルは繰り返し使われることが
+ * あるため、内容ではなく ID で一意に判別する。
+ */
+export function announcementIdMarker(announcementId: string): string {
+  return `ann:${announcementId}`
+}
+
 export type AnnouncementMessageInput = {
+  /** お知らせの ID。未発行（新規作成のプレビュー）なら省略する */
+  announcementId?: string | null
   title: string
   /** ポータル側の Markdown 本文 */
   content: string
@@ -85,6 +101,13 @@ export function buildAnnouncementMessage(
 
   const body = toDiscordMarkdown(input.content).trim()
 
+  // ID が未発行のプレビューでも本文の切り詰め位置が変わらないよう、
+  // 表示はしないが同じ長さを見込んでおく
+  const idLine = input.announcementId
+    ? `-# ${announcementIdMarker(input.announcementId)}`
+    : null
+  const idLineLength = `-# ${announcementIdMarker('x'.repeat(ANNOUNCEMENT_ID_LENGTH))}`.length
+
   /** フッタは切り詰めの有無で文言が変わるため、両方の長さを見て余白を決める */
   const buildFooter = (isTruncated: boolean): string => {
     if (!portalLink) return `-# ${meta.join(' ・ ')}`
@@ -94,14 +117,22 @@ export function buildAnnouncementMessage(
 
   // タイトル行・フッタ・区切りの改行を確保したうえで本文に使える文字数を求める
   const fixedLength =
-    mention.length + heading.length + buildFooter(true).length + '\n\n\n\n'.length
+    mention.length +
+    heading.length +
+    buildFooter(true).length +
+    idLineLength +
+    '\n\n\n\n\n'.length
   const bodyLimit = Math.max(
     0,
     Math.min(DISCORD_BODY_MAX_LENGTH, DISCORD_CONTENT_MAX_LENGTH - fixedLength)
   )
 
   const { text, truncated } = truncate(body, bodyLimit)
-  const content = [`${mention}${heading}`, text, buildFooter(truncated)]
+  const content = [
+    `${mention}${heading}`,
+    text,
+    [buildFooter(truncated), idLine].filter(Boolean).join('\n'),
+  ]
     .filter((part) => part.length > 0)
     .join('\n\n')
 

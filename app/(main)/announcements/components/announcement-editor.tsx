@@ -248,6 +248,8 @@ export function AnnouncementEditor({
   const discordPreview = useMemo(
     () =>
       buildAnnouncementMessage({
+        // 新規作成時はまだ ID が無い（発行後に末尾へ付く）
+        announcementId: announcement?.id,
         title: title.trim() || '（タイトル未入力）',
         content,
         category,

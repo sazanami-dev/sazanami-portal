@@ -13,7 +13,10 @@ import {
   findRecentBotMessage,
   sendAnnouncementMessage,
 } from '@/lib/discord/announcement-notify'
-import { buildAnnouncementMessage } from '@/lib/discord/announcement-message'
+import {
+  announcementIdMarker,
+  buildAnnouncementMessage,
+} from '@/lib/discord/announcement-message'
 
 import {
   claimAnnouncementForDiscordEdit,
@@ -57,10 +60,7 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-/** メッセージの照合に使う、お知らせを一意に見分けられる文字列 */
-function messageMarker(title: string): string {
-  return `【${title.trim()}】`
-}
+
 
 function botToken(): string | null {
   return process.env.DISCORD_BOT_TOKEN?.trim() || null
@@ -72,6 +72,7 @@ function portalUrl(): string | null {
 
 function messageFor(announcement: ManagedAnnouncement): string {
   return buildAnnouncementMessage({
+    announcementId: announcement.id,
     title: announcement.title,
     content: announcement.content,
     category: announcement.category,
@@ -212,7 +213,8 @@ export async function editAnnouncementOnDiscord(
  * 送信は成功したのに記録の書き込みに失敗した場合や、記録前にプロセスが
  * 落ちた場合に起こる。そのまま再送すると二重投稿になるため、チャンネルの
  * 直近メッセージから同じお知らせの投稿を探し、見つかったら引き継ぐ。
- * 同じタイトルの過去の投稿を拾わないよう、送信を始めた時刻より後に限る。
+ * 探索にはメッセージ末尾のお知らせ ID を使うので、同じタイトルの
+ * 別のお知らせを取り違えることはない。
  *
  * @returns 引き継げたか
  */
@@ -224,10 +226,7 @@ async function adoptExistingMessage(announcement: ManagedAnnouncement): Promise<
   const found = await findRecentBotMessage({
     botToken: token,
     channelId,
-    contains: messageMarker(announcement.title),
-    // 処理権を取った時点で updated_at を更新しているので、
-    // 投稿があったとすればその時刻より後になる
-    sentAfter: new Date(announcement.updatedAt),
+    contains: announcementIdMarker(announcement.id),
   })
 
   if (!found.ok || !found.messageId) return false

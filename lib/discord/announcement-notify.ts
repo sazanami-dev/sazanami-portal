@@ -184,25 +184,20 @@ async function botUserId(botToken: string): Promise<string | null> {
  * 二重投稿になる。再送の前にここで実際の投稿を探し、見つかれば
  * そのメッセージ ID を引き継いで編集に切り替えるために使う。
  *
- * タイトルは繰り返し使われることがあるため、内容の一致だけでは
- * 過去の別のお知らせを拾いうる。送信を始めた時刻より後のものに限る。
+ * 照合にはメッセージ末尾に入れたお知らせ ID の印を使うため、
+ * 同じタイトルのお知らせが並んでいても取り違えない。
  */
 export async function findRecentBotMessage({
   botToken,
   channelId,
   contains,
-  sentAfter,
-  limit = 50,
+  limit = 100,
 }: {
   botToken: string
   channelId: string
-  /** メッセージ本文に含まれるはずの文字列（お知らせのタイトル行など） */
+  /** メッセージ本文に含まれるはずの文字列（お知らせ ID の印） */
   contains: string
-  /**
-   * この時刻より後に投稿されたものだけを対象にする。
-   * 同じタイトルで過去に投稿したメッセージを誤って拾わないための絞り込み。
-   */
-  sentAfter: Date
+  /** さかのぼって探す件数（Discord の上限は 100） */
   limit?: number
 }): Promise<{ ok: true; messageId: string | null } | DiscordSendFailure> {
   const selfId = await botUserId(botToken)
@@ -217,19 +212,12 @@ export async function findRecentBotMessage({
     const messages = (await res.json()) as {
       id?: unknown
       content?: unknown
-      timestamp?: unknown
       author?: { id?: unknown }
     }[]
 
-    // Discord との時計のずれを吸収する余裕
-    const threshold = sentAfter.getTime() - 60_000
-
     const found = messages.find((message) => {
       if (typeof message.content !== 'string' || !message.content.includes(contains)) return false
-      if (selfId !== null && message.author?.id !== selfId) return false
-      if (typeof message.timestamp !== 'string') return false
-      const postedAt = new Date(message.timestamp).getTime()
-      return Number.isFinite(postedAt) && postedAt >= threshold
+      return selfId === null || message.author?.id === selfId
     })
 
     return {
