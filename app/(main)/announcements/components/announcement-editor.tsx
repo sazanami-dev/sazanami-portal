@@ -194,22 +194,23 @@ export function AnnouncementEditor({
     if (!open) return
     let aborted = false
     setChannelsLoaded(false)
+
     const request = (async (): Promise<ChannelsResponse | null> => {
+      let data: ChannelsResponse | null = null
       try {
         const res = await fetch('/api/announcements/discord/channels')
-        if (!res.ok) return null
-        return (await res.json()) as ChannelsResponse
+        if (res.ok) data = (await res.json()) as ChannelsResponse
       } catch {
         // 取得できなければ Discord セクションを未設定として扱う
-        return null
       }
+      if (!aborted) {
+        if (data) setChannels(data)
+        setChannelsLoaded(true)
+      }
+      return data
     })()
+
     channelsRequest.current = request
-    void request.then((data) => {
-      if (aborted) return
-      if (data) setChannels(data)
-      setChannelsLoaded(true)
-    })
     return () => {
       aborted = true
     }
@@ -234,6 +235,9 @@ export function AnnouncementEditor({
     (id: string | null) => channels?.channels.find((c) => c.id === id)?.name ?? id ?? '',
     [channels]
   )
+
+  /** 確認画面に出す通知先。送信内容と同じ解決の仕方をする */
+  const confirmedChannelId = channelsLoaded ? resolveChannelId(channels) : null
 
   const discordMessageUrl =
     channels?.guildId && discord?.channelId && discord?.messageId
@@ -320,20 +324,30 @@ export function AnnouncementEditor({
     return iso ?? 'invalid'
   }
 
+  /**
+   * 実際の通知先。未選択ならカテゴリの既定を使う。
+   * 確認画面の表示と送信内容がずれないよう、解決の仕方をここに一本化する。
+   */
+  function resolveChannelId(loaded: ChannelsResponse | null): string | null {
+    if (!discordEnabled) return null
+    if (channelId) return channelId
+    // 手動で外した場合は既定に戻さない
+    if (channelTouched) return null
+    return loaded?.defaultByCategory[category] ?? null
+  }
+
   /** Discord 設定。下書きでも保存しておき、公開時にそのまま使う */
   async function discordPayload(): Promise<Record<string, unknown>> {
     // 選択肢の取得が終わる前に投稿された場合でも、
     // 既定の通知先を取りこぼさないよう待ってから決める
     const loaded = channels ?? (await channelsRequest.current)
-    const resolvedChannelId =
-      channelId ?? (channelTouched ? null : (loaded?.defaultByCategory[category] ?? null))
 
     const payload: Record<string, unknown> = {
       discordMentionEveryone: discordEnabled && mentionEveryone,
     }
     // 送信済みのチャンネルは変更できないため、そもそも送らない
     if (!discord?.messageId) {
-      payload.discordChannelId = discordEnabled ? resolvedChannelId : null
+      payload.discordChannelId = resolveChannelId(loaded)
     }
     return payload
   }
@@ -799,9 +813,12 @@ export function AnnouncementEditor({
                   Discord の投稿（{channelNameOf(discord.channelId)}）も同じ内容に
                   <span className="font-semibold">更新されます</span>。
                 </>
-              ) : discordEnabled && channelId ? (
+              ) : !channelsLoaded && discordEnabled ? (
+                // 取得が終わるまで通知先が確定しないので、断定した文言を出さない
+                <>通知先を確認しています...</>
+              ) : confirmedChannelId ? (
                 <>
-                  <span className="font-semibold">{channelNameOf(channelId)}</span> へ
+                  <span className="font-semibold">{channelNameOf(confirmedChannelId)}</span> へ
                   {mentionEveryone ? '@everyone 付きで' : ''}投稿します。
                 </>
               ) : (
