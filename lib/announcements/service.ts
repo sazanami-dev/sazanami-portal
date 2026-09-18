@@ -490,6 +490,22 @@ export async function markDiscordSent(
 }
 
 /**
+ * レート制限に当たったことを記録する。
+ *
+ * 一時的な制限なので失敗として置くと手動再送が必要になってしまう。
+ * 送信待ちに戻し、次回の cron で送り直せるようにする。
+ */
+export async function markDiscordRateLimited(
+  id: string,
+  { error }: { error: string }
+): Promise<boolean> {
+  return writeDiscordState(id, {
+    discord_notification_status: 'pending',
+    discord_notification_error: error,
+  })
+}
+
+/**
  * 送信・編集の失敗を記録する。
  * Discord 側でメッセージが消えている場合は messageId を外し、
  * 次の再送で新規投稿としてやり直せるようにする。

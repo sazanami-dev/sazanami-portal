@@ -22,6 +22,7 @@ import {
   listAnnouncementsPendingDiscord,
   listStuckDiscordSending,
   markDiscordFailed,
+  markDiscordRateLimited,
   markDiscordSent,
   DISCORD_CRON_BATCH_SIZE,
 } from './service'
@@ -137,8 +138,13 @@ export async function sendAnnouncementToDiscord(
   })
 
   if (!result.ok) {
+    if (result.rateLimited) {
+      // 一時的な制限なので送信待ちに戻し、次回の cron で送り直す
+      await markDiscordRateLimited(id, { error: result.detail })
+      return { outcome: 'skipped', rateLimited: true }
+    }
     await markDiscordFailed(id, { error: result.detail })
-    return { outcome: 'failed', rateLimited: result.rateLimited === true }
+    return { outcome: 'failed', rateLimited: false }
   }
 
   const recorded = await markDiscordSent(id, { messageId: result.messageId })
@@ -325,8 +331,8 @@ export async function processPendingDiscordNotifications(
     else summary.skipped += 1
 
     if (result.rateLimited) {
-      // 続けて投げても失敗するだけなので、残りは次回に回す
-      summary.deferred = pending.length - (index + 1)
+      // 続けて投げても失敗するだけなので、この 1 件も含めて次回に回す
+      summary.deferred = pending.length - index
       break
     }
   }
