@@ -63,6 +63,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_discord_channel: '通知先チャンネルの指定が不正です',
   discord_channel_locked: '送信済みのお知らせは通知先チャンネルを変更できません',
   sending_in_progress: '送信処理中です。しばらくしてから再度お試しください',
+  not_published: '公開中のお知らせのみ再送信できます',
   not_resendable: 'このお知らせは再送信の対象ではありません',
   forbidden: 'この操作を行う権限がありません',
 }
@@ -656,18 +657,23 @@ export function AnnouncementEditor({
                           <p className="mt-1 break-all">{discord.error}</p>
                         </details>
                       )}
-                      {discord.status === 'failed' && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="mt-1"
-                          disabled={resending || submitting}
-                          onClick={() => void resend()}
-                        >
-                          {resending ? '再送信中...' : '再送信'}
-                        </Button>
-                      )}
+                      {discord.status === 'failed' &&
+                        (isDraft || isArchived ? (
+                          <p className="text-xs text-muted-foreground">
+                            公開中のお知らせのみ再送信できます
+                          </p>
+                        ) : (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="mt-1"
+                            disabled={resending || submitting}
+                            onClick={() => void resend()}
+                          >
+                            {resending ? '再送信中...' : '再送信'}
+                          </Button>
+                        ))}
                     </div>
                   )}
 

@@ -8,7 +8,7 @@ import { getManagedAnnouncement } from '@/lib/announcements/service'
 type RouteContext = { params: Promise<{ id: string }> }
 
 /**
- * Discord への手動再送。送信に失敗したお知らせだけが対象。
+ * Discord への手動再送。公開中かつ送信に失敗したお知らせだけが対象。
  * 未送信なら新規送信、送信済みメッセージが残っていれば編集としてやり直す。
  * manager 以上のみ。
  */
@@ -28,6 +28,10 @@ export async function POST(_request: Request, context: RouteContext) {
   const existing = await getManagedAnnouncement(id)
   if (!existing) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
+  }
+  // 下書きに戻された・アーカイブされたお知らせを Discord に流さない
+  if (existing.status !== 'published') {
+    return NextResponse.json({ error: 'not_published' }, { status: 409 })
   }
   if (existing.discord.status === 'sending') {
     return NextResponse.json({ error: 'sending_in_progress' }, { status: 409 })
