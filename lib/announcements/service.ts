@@ -418,6 +418,7 @@ export async function claimAnnouncementForDiscordSend(
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
+    .is('deleted_at', null)
     .in('discord_notification_status', ['pending', 'failed'])
     .is('discord_message_id', null)
     .not('discord_channel_id', 'is', null)
@@ -440,6 +441,7 @@ export async function claimAnnouncementForDiscordEdit(
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
+    .is('deleted_at', null)
     .in('discord_notification_status', ['sent', 'failed'])
     .not('discord_message_id', 'is', null)
     .select(SELECT_COLUMNS_WITH_DISCORD)
@@ -533,6 +535,7 @@ export async function listStuckDiscordSending(): Promise<ManagedAnnouncement[]> 
   const { data, error } = await admin
     .from('announcements')
     .select(SELECT_COLUMNS_WITH_DISCORD)
+    .is('deleted_at', null)
     .eq('discord_notification_status', 'sending')
     .lte('updated_at', threshold)
     .limit(DISCORD_CRON_BATCH_SIZE)
