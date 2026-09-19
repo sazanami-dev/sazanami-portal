@@ -27,6 +27,7 @@ import {
   markDiscordFailed,
   markDiscordRateLimited,
   markDiscordSent,
+  noteDiscordError,
   DISCORD_CRON_BATCH_SIZE,
 } from './service'
 import type { AnnouncementStatus, DiscordNotificationStatus, ManagedAnnouncement } from './types'
@@ -216,12 +217,25 @@ export async function editAnnouncementOnDiscord(
  * 探索にはメッセージ末尾のお知らせ ID を使うので、同じタイトルの
  * 別のお知らせを取り違えることはない。
  *
- * @returns 引き継げたか
+ * Discord に問い合わせできなかった場合は「投稿が無い」と断定できない。
+ * 未送信として扱うと後の再送で二重投稿になるため、結果を区別して返す。
  */
-async function adoptExistingMessage(announcement: ManagedAnnouncement): Promise<boolean> {
+type AdoptResult =
+  /** 投稿が見つかり、送信済みとして引き継いだ */
+  | 'adopted'
+  /** 問い合わせはできたが、投稿は無かった（＝本当に未送信） */
+  | 'not_found'
+  /** 問い合わせ自体ができなかった（通信エラー・レート制限・設定不足） */
+  | 'unknown'
+
+async function adoptExistingMessage(
+  announcement: ManagedAnnouncement
+): Promise<{ result: AdoptResult; detail?: string }> {
   const token = botToken()
   const channelId = announcement.discord.channelId
-  if (!token || !channelId) return false
+  if (!token || !channelId) {
+    return { result: 'unknown', detail: 'Bot トークンまたは通知先が設定されていません' }
+  }
 
   const found = await findRecentBotMessage({
     botToken: token,
@@ -229,10 +243,11 @@ async function adoptExistingMessage(announcement: ManagedAnnouncement): Promise<
     contains: announcementIdMarker(announcement.id),
   })
 
-  if (!found.ok || !found.messageId) return false
+  if (!found.ok) return { result: 'unknown', detail: found.detail }
+  if (!found.messageId) return { result: 'not_found' }
 
   await markDiscordSent(announcement.id, { messageId: found.messageId })
-  return true
+  return { result: 'adopted' }
 }
 
 /**
@@ -249,7 +264,15 @@ export async function resendAnnouncementToDiscord(
   // 記録できなかっただけで投稿は済んでいることがある。
   // そのまま送ると二重投稿になるため、先に実際の投稿を探す。
   const adopted = await adoptExistingMessage(announcement)
-  if (adopted) return { outcome: 'sent', rateLimited: false }
+  if (adopted.result === 'adopted') return { outcome: 'sent', rateLimited: false }
+
+  // 投稿の有無を確認できないまま送ると二重投稿になりうるので、ここで止める
+  if (adopted.result === 'unknown') {
+    await markDiscordFailed(announcement.id, {
+      error: `Discord に問い合わせできず、二重投稿を避けるため再送を中止しました: ${adopted.detail ?? ''}`.trim(),
+    })
+    return { outcome: 'failed', rateLimited: false }
+  }
 
   return sendAnnouncementToDiscord(announcement.id)
 }
@@ -270,26 +293,50 @@ export type DiscordCronSummary = {
  *
  * 実際に投稿されていればその投稿を引き継いで送信済みにし、
  * 見つからなければ失敗として再送できる状態に戻す。
+ * Discord に問い合わせできなかったものは、そのまま次回の実行に持ち越す。
  * @returns 片付けた件数
  */
-async function recoverStuckAnnouncements(): Promise<number> {
+async function recoverStuckAnnouncements(deadlineAt: number): Promise<number> {
   const stuck = await listStuckDiscordSending()
+  let recovered = 0
 
-  for (const announcement of stuck) {
+  for (const [index, announcement] of stuck.entries()) {
+    if (Date.now() > deadlineAt) break
+    // 投稿の有無を確認する問い合わせにもレート制限があるため間隔を空ける
+    if (index > 0) await wait(SEND_INTERVAL_MS)
+
     // 編集の途中で止まったものは投稿自体が残っているので、失敗に戻すだけでよい
-    const adopted = announcement.discord.messageId
-      ? false
-      : await adoptExistingMessage(announcement)
-    if (adopted) continue
+    if (announcement.discord.messageId) {
+      await markDiscordFailed(announcement.id, {
+        error: 'timeout: 送信処理が完了しませんでした',
+      })
+      recovered += 1
+      continue
+    }
+
+    const adopted = await adoptExistingMessage(announcement)
+    if (adopted.result === 'adopted') {
+      recovered += 1
+      continue
+    }
+
+    // 投稿の有無を確認できなかった場合は未送信と断定できない。
+    // 失敗にすると再送で二重投稿になりうるので、送信処理中のまま次回に回す。
+    if (adopted.result === 'unknown') {
+      await noteDiscordError(
+        announcement.id,
+        `投稿の有無を確認できなかったため、次回の実行に持ち越します: ${adopted.detail ?? ''}`.trim()
+      )
+      continue
+    }
 
     await markDiscordFailed(announcement.id, {
-      error: announcement.discord.messageId
-        ? 'timeout: 送信処理が完了しませんでした'
-        : 'timeout: 送信処理が完了しませんでした（投稿は見つからなかったため未送信として扱います）',
+      error: 'timeout: 送信処理が完了しませんでした（投稿は見つからなかったため未送信として扱います）',
     })
+    recovered += 1
   }
 
-  return stuck.length
+  return recovered
 }
 
 /**
@@ -303,7 +350,8 @@ export async function processPendingDiscordNotifications(
   limit: number = DISCORD_CRON_BATCH_SIZE
 ): Promise<DiscordCronSummary> {
   const startedAt = Date.now()
-  const recovered = await recoverStuckAnnouncements()
+  // 復旧に時間を取られて送信が止まらないよう、上限時間の半分までに抑える
+  const recovered = await recoverStuckAnnouncements(startedAt + CRON_DEADLINE_MS / 2)
   const pending = await listAnnouncementsPendingDiscord(limit)
 
   const summary: DiscordCronSummary = {

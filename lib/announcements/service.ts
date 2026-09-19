@@ -490,6 +490,14 @@ export async function markDiscordSent(
 }
 
 /**
+ * 通知状態は変えずに、理由だけを書き残す。
+ * 「送信処理中のまま様子を見る」ときに、止まっている理由を管理画面へ出すために使う。
+ */
+export async function noteDiscordError(id: string, error: string): Promise<boolean> {
+  return writeDiscordState(id, { discord_notification_error: error })
+}
+
+/**
  * レート制限に当たったことを記録する。
  *
  * 一時的な制限なので失敗として置くと手動再送が必要になってしまう。
