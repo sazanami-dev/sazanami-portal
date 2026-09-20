@@ -16,6 +16,7 @@ export type ValidationError =
   | 'invalid_category'
   | 'invalid_status'
   | 'invalid_publish_at'
+  | 'invalid_discord_channel'
 
 export type Validated<T> = { ok: true; value: T } | { ok: false; error: ValidationError }
 
@@ -68,4 +69,22 @@ export function validateUpdateStatus(value: unknown): Validated<AnnouncementStat
 
 export function optionalBoolean(value: unknown): boolean | undefined {
   return typeof value === 'boolean' ? value : undefined
+}
+
+/**
+ * 通知先チャンネル ID。null は「通知しない」。
+ * 環境変数で定義されたチャンネルかどうかの判定は呼び出し側から渡す
+ * （この関数はクライアントからも読み込むため、環境変数を直接見ない）。
+ */
+export function validateDiscordChannelId(
+  value: unknown,
+  isAllowed: (id: string) => boolean
+): Validated<string | null> {
+  if (value === null || value === undefined || value === '') {
+    return { ok: true, value: null }
+  }
+  if (typeof value !== 'string' || !isAllowed(value)) {
+    return { ok: false, error: 'invalid_discord_channel' }
+  }
+  return { ok: true, value }
 }

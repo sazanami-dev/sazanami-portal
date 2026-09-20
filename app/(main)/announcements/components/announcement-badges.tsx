@@ -4,6 +4,7 @@ import {
   ANNOUNCEMENT_CATEGORY_BADGE_CLASSES,
   ANNOUNCEMENT_CATEGORY_LABELS,
   type AnnouncementCategory,
+  type DiscordNotificationStatus,
 } from '@/lib/announcements/types'
 
 const BASE_CLASS = 'rounded px-2 py-0.5 text-xs font-medium'
@@ -47,4 +48,24 @@ export function StateBadge({ label }: { label: string }) {
       {label}
     </span>
   )
+}
+
+/**
+ * Discord の通知状態バッジ（管理者一覧でのみ使う）。
+ * 送信済み・通知しない設定は情報過多になるため表示しない。
+ */
+export function DiscordStatusBadge({ status }: { status: DiscordNotificationStatus }) {
+  if (status === 'failed') {
+    return (
+      <span
+        className={`${BASE_CLASS} bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300`}
+      >
+        Discord 送信失敗
+      </span>
+    )
+  }
+  if (status === 'pending' || status === 'sending') {
+    return <StateBadge label="Discord 送信待ち" />
+  }
+  return null
 }

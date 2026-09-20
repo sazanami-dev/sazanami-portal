@@ -8,21 +8,29 @@ import {
 import {
   ANNOUNCEMENTS_PAGE_SIZE,
   createAnnouncement,
+  getManagedAnnouncement,
   listDraftAnnouncements,
   listManagedAnnouncements,
   listPublishedAnnouncements,
   revalidateAnnouncements,
   type AnnouncementListResult,
 } from '@/lib/announcements/service'
+import {
+  isDueForDiscord,
+  resolveDiscordStatusAfterSave,
+  sendAnnouncementToDiscord,
+} from '@/lib/announcements/discord'
 import { isAnnouncementCategory } from '@/lib/announcements/types'
 import {
   optionalBoolean,
   validateContent,
   validateCreateStatus,
   validateCategory,
+  validateDiscordChannelId,
   validatePublishAt,
   validateTitle,
 } from '@/lib/announcements/validation'
+import { isAllowedAnnounceChannelId } from '@/lib/discord/announce-channels'
 
 /**
  * 一覧取得。
@@ -95,6 +103,8 @@ export async function POST(request: Request) {
     isImportant,
     isPinned,
     publishAt,
+    discordChannelId,
+    discordMentionEveryone,
   } = body as Record<string, unknown>
 
   const titleResult = validateTitle(title)
@@ -124,6 +134,23 @@ export async function POST(request: Request) {
     publishAtValue = publishAtResult.value
   }
 
+  // チャンネル ID は環境変数で定義されたものだけを受け付ける
+  const channelResult = validateDiscordChannelId(
+    discordChannelId,
+    isAllowedAnnounceChannelId
+  )
+  if (!channelResult.ok) {
+    return NextResponse.json({ error: channelResult.error }, { status: 400 })
+  }
+
+  // 下書きや通知しない設定なら not_sent、公開なら送信待ちにしておく
+  const discordStatus =
+    resolveDiscordStatusAfterSave({
+      status: statusResult.value,
+      channelId: channelResult.value,
+      current: 'not_sent',
+    }) ?? 'not_sent'
+
   const announcement = await createAnnouncement({
     title: titleResult.value,
     content: contentResult.value,
@@ -132,6 +159,9 @@ export async function POST(request: Request) {
     isImportant: optionalBoolean(isImportant),
     isPinned: optionalBoolean(isPinned),
     publishAt: publishAtValue,
+    discordChannelId: channelResult.value,
+    discordMentionEveryone: optionalBoolean(discordMentionEveryone) ?? false,
+    discordNotificationStatus: discordStatus,
     createdBy: ctx.userId,
   })
 
@@ -140,5 +170,16 @@ export async function POST(request: Request) {
   }
 
   revalidateAnnouncements()
+
+  // 公開時刻が到来していればこの場で送信する。予約投稿は cron が拾う。
+  // 送信に失敗してもお知らせの作成自体は成功として返す（通知はベストエフォート）。
+  if (discordStatus === 'pending' && isDueForDiscord(announcement.publishAt)) {
+    await sendAnnouncementToDiscord(announcement.id)
+    const notified = await getManagedAnnouncement(announcement.id)
+    if (notified) {
+      return NextResponse.json({ announcement: notified }, { status: 201 })
+    }
+  }
+
   return NextResponse.json({ announcement }, { status: 201 })
 }

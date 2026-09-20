@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  formatAnnouncementDateTime,
   fromDateTimeLocalValue,
   toDateTimeLocalValue,
 } from '@/lib/announcements/format'
@@ -31,14 +32,25 @@ import {
 import {
   ANNOUNCEMENT_CATEGORIES,
   ANNOUNCEMENT_CATEGORY_LABELS,
+  DISCORD_NOTIFICATION_STATUS_LABELS,
   isScheduled,
-  type Announcement,
   type AnnouncementCategory,
+  type AnnouncementDiscord,
+  type AnnouncementListItem,
 } from '@/lib/announcements/types'
+import { buildAnnouncementMessage } from '@/lib/discord/announcement-message'
 
 import { AnnouncementMarkdown } from './announcement-markdown'
 
 type PublishMode = 'now' | 'scheduled'
+
+type AnnounceChannel = { key: string; id: string; name: string }
+
+type ChannelsResponse = {
+  channels: AnnounceChannel[]
+  defaultByCategory: Record<AnnouncementCategory, string | null>
+  guildId: string | null
+}
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_title: 'タイトルを入力してください',
@@ -48,6 +60,11 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_category: 'カテゴリの指定が不正です',
   invalid_status: 'ステータスの指定が不正です',
   invalid_publish_at: '公開日時の指定が不正です',
+  invalid_discord_channel: '通知先チャンネルの指定が不正です',
+  discord_channel_locked: '送信済みのお知らせは通知先チャンネルを変更できません',
+  sending_in_progress: '送信処理中です。しばらくしてから再度お試しください',
+  not_published: '公開中のお知らせのみ再送信できます',
+  not_resendable: 'このお知らせは再送信の対象ではありません',
   forbidden: 'この操作を行う権限がありません',
 }
 
@@ -99,7 +116,7 @@ export function AnnouncementEditor({
 }: {
   open: boolean
   /** 未指定なら新規作成 */
-  announcement?: Announcement | null
+  announcement?: AnnouncementListItem | null
   onClose: () => void
   onSaved: () => void
 }) {
@@ -123,6 +140,21 @@ export function AnnouncementEditor({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Discord 関連
+  const [channels, setChannels] = useState<ChannelsResponse | null>(null)
+  /** 取得が終わるまでは「未設定」と区別して読み込み中と表示する */
+  const [channelsLoaded, setChannelsLoaded] = useState(false)
+  /** 取得中に投稿されたときに待ち合わせるためのリクエスト */
+  const channelsRequest = useRef<Promise<ChannelsResponse | null> | null>(null)
+  const [discordEnabled, setDiscordEnabled] = useState(true)
+  const [channelId, setChannelId] = useState<string | null>(null)
+  const [mentionEveryone, setMentionEveryone] = useState(false)
+  /** 手動でチャンネルを変えたら、以降はカテゴリ変更で上書きしない */
+  const [channelTouched, setChannelTouched] = useState(false)
+  const [showDiscordPreview, setShowDiscordPreview] = useState(false)
+  const [discord, setDiscord] = useState<AnnouncementDiscord | null>(null)
+  const [resending, setResending] = useState(false)
+
   // モーダルを開くたびに対象のお知らせで初期化する
   useEffect(() => {
     if (!open) return
@@ -139,11 +171,105 @@ export function AnnouncementEditor({
     setPublishAtLocal(
       announcement ? toDateTimeLocalValue(announcement.publishAt) : ''
     )
+
+    setShowDiscordPreview(false)
+    setResending(false)
+    setDiscord(announcement?.discord ?? null)
+    if (announcement) {
+      // 保存済みの設定を尊重し、カテゴリ変更で上書きしない
+      setDiscordEnabled(announcement.discord?.channelId != null)
+      setChannelId(announcement.discord?.channelId ?? null)
+      setMentionEveryone(announcement.discord?.mentionEveryone ?? false)
+      setChannelTouched(true)
+    } else {
+      setDiscordEnabled(true)
+      setChannelId(null)
+      setMentionEveryone(false)
+      setChannelTouched(false)
+    }
   }, [open, announcement])
+
+  // 選択肢は開くたびに取り直す（環境変数の変更が即反映される）
+  useEffect(() => {
+    if (!open) return
+    let aborted = false
+    setChannelsLoaded(false)
+
+    const request = (async (): Promise<ChannelsResponse | null> => {
+      let data: ChannelsResponse | null = null
+      try {
+        const res = await fetch('/api/announcements/discord/channels')
+        if (res.ok) data = (await res.json()) as ChannelsResponse
+      } catch {
+        // 取得できなければ Discord セクションを未設定として扱う
+      }
+      if (!aborted) {
+        if (data) setChannels(data)
+        setChannelsLoaded(true)
+      }
+      return data
+    })()
+
+    channelsRequest.current = request
+    return () => {
+      aborted = true
+    }
+  }, [open])
+
+  // カテゴリに応じて通知先を切り替える（手動変更後は追従しない）
+  useEffect(() => {
+    if (!open || !channels || channelTouched) return
+    setChannelId(channels.defaultByCategory[category] ?? null)
+  }, [open, channels, channelTouched, category])
 
   const canProceed = useMemo(
     () => title.trim().length > 0 && content.trim().length > 0,
     [title, content]
+  )
+
+  const hasChannels = (channels?.channels.length ?? 0) > 0
+  /** 送信済みのメッセージは別チャンネルへ移動できないため、変更させない */
+  const channelLocked = Boolean(discord?.messageId)
+
+  const channelNameOf = useCallback(
+    (id: string | null) => channels?.channels.find((c) => c.id === id)?.name ?? id ?? '',
+    [channels]
+  )
+
+  /** 確認画面に出す通知先。送信内容と同じ解決の仕方をする */
+  const confirmedChannelId = channelsLoaded ? resolveChannelId(channels) : null
+
+  const discordMessageUrl =
+    channels?.guildId && discord?.channelId && discord?.messageId
+      ? `https://discord.com/channels/${channels.guildId}/${discord.channelId}/${discord.messageId}`
+      : null
+
+  // 送信処理と同じ関数で組み立てるので、実際に届く文面と一致する
+  const discordPreview = useMemo(
+    () =>
+      buildAnnouncementMessage({
+        // 新規作成時はまだ ID が無い（発行後に末尾へ付く）
+        announcementId: announcement?.id,
+        title: title.trim() || '（タイトル未入力）',
+        content,
+        category,
+        publishAt:
+          publishMode === 'scheduled'
+            ? (fromDateTimeLocalValue(publishAtLocal) ?? new Date().toISOString())
+            : (announcement?.publishAt ?? new Date().toISOString()),
+        mentionEveryone: discordEnabled && mentionEveryone,
+        portalUrl: process.env.NEXT_PUBLIC_SITE_URL ?? null,
+      }),
+    [
+      title,
+      content,
+      category,
+      publishMode,
+      publishAtLocal,
+      announcement,
+      discordEnabled,
+      mentionEveryone,
+    ]
   )
 
   async function submit(payload: Record<string, unknown>) {
@@ -200,19 +326,54 @@ export function AnnouncementEditor({
     return iso ?? 'invalid'
   }
 
-  function saveDraft() {
+  /**
+   * 実際の通知先。未選択ならカテゴリの既定を使う。
+   * 確認画面の表示と送信内容がずれないよう、解決の仕方をここに一本化する。
+   */
+  function resolveChannelId(loaded: ChannelsResponse | null): string | null {
+    if (!discordEnabled) return null
+    if (channelId) return channelId
+    // 手動で外した場合は既定に戻さない
+    if (channelTouched) return null
+    return loaded?.defaultByCategory[category] ?? null
+  }
+
+  /** Discord 設定。下書きでも保存しておき、公開時にそのまま使う */
+  async function discordPayload(): Promise<Record<string, unknown>> {
+    // 選択肢の取得が終わる前に投稿された場合でも、
+    // 既定の通知先を取りこぼさないよう待ってから決める
+    const loaded = channels ?? (await channelsRequest.current)
+
+    const payload: Record<string, unknown> = {
+      discordMentionEveryone: discordEnabled && mentionEveryone,
+    }
+    // 送信済みのチャンネルは変更できないため、そもそも送らない
+    if (!discord?.messageId) {
+      payload.discordChannelId = resolveChannelId(loaded)
+    }
+    return payload
+  }
+
+  async function saveDraft() {
     const message = stepOneError()
     if (message) {
       setError(message)
       return
     }
-    void submit({ title, content, category, isImportant, status: 'draft' })
+    await submit({
+      title,
+      content,
+      category,
+      isImportant,
+      status: 'draft',
+      ...(await discordPayload()),
+    })
   }
 
-  function publish() {
+  async function publish() {
     if (!canChooseSchedule) {
       // 公開済み・アーカイブ済みの編集では、ステータスと公開日時は変更しない
-      void submit({ title, content, category, isImportant })
+      await submit({ title, content, category, isImportant, ...(await discordPayload()) })
       return
     }
 
@@ -226,13 +387,14 @@ export function AnnouncementEditor({
       setError('公開日時には未来の日時を指定してください')
       return
     }
-    void submit({
+    await submit({
       title,
       content,
       category,
       isImportant,
       status: 'published',
       ...(publishAt ? { publishAt } : {}),
+      ...(await discordPayload()),
     })
   }
 
@@ -240,10 +402,35 @@ export function AnnouncementEditor({
     // 即時公開は取り消せないため確認を挟む。
     // 予約投稿でも、指定時刻が現在の分なら実質その場で公開されるので確認する。
     if (canChooseSchedule && publishMode === 'scheduled' && isFutureLocalValue(publishAtLocal)) {
-      publish()
+      void publish()
       return
     }
     setConfirming(true)
+  }
+
+  async function resend() {
+    if (!announcement) return
+    setResending(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/announcements/${announcement.id}/discord/resend`, {
+        method: 'POST',
+      })
+      const body = await res.json().catch(() => null)
+      if (!res.ok) {
+        setError(errorMessageOf(body?.error))
+        return
+      }
+      setDiscord(body.discord as AnnouncementDiscord)
+      if ((body.discord as AnnouncementDiscord).status === 'failed') {
+        setError('再送信しましたが、まだ失敗しています')
+      }
+      onSaved()
+    } catch {
+      setError('通信に失敗しました')
+    } finally {
+      setResending(false)
+    }
   }
 
   function toggleArchive() {
@@ -335,7 +522,7 @@ export function AnnouncementEditor({
                   type="button"
                   variant="outline"
                   disabled={!canProceed || submitting}
-                  onClick={saveDraft}
+                  onClick={() => void saveDraft()}
                 >
                   {isScheduledPost ? '下書きにする' : '下書きを保存'}
                 </Button>
@@ -438,6 +625,166 @@ export function AnnouncementEditor({
               )}
             </section>
 
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold">Discord</h3>
+
+              {!channelsLoaded ? (
+                <p className="text-sm text-muted-foreground">
+                  通知先を読み込んでいます...
+                </p>
+              ) : !hasChannels ? (
+                <p className="text-sm text-muted-foreground">
+                  Discord 連携が未設定です
+                </p>
+              ) : (
+                <>
+                  {isEdit && discord && discord.status !== 'not_sent' && (
+                    <div className="space-y-1 rounded-md border bg-muted/30 px-3 py-2">
+                      <p className="text-sm font-medium">
+                        {discord.status === 'sent' && '✅ '}
+                        {discord.status === 'failed' && '⚠️ '}
+                        {discord.status === 'pending' && '🕐 '}
+                        {DISCORD_NOTIFICATION_STATUS_LABELS[discord.status]}
+                        {discord.channelId && `（${channelNameOf(discord.channelId)}）`}
+                      </p>
+                      {discord.status === 'pending' && (
+                        <p className="text-xs text-muted-foreground">
+                          公開時刻に到達したら送信されます
+                        </p>
+                      )}
+                      {discord.notifiedAt && (
+                        <p className="text-xs text-muted-foreground">
+                          最終送信: {formatAnnouncementDateTime(discord.notifiedAt)}
+                        </p>
+                      )}
+                      {discordMessageUrl && (
+                        <a
+                          href={discordMessageUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-block text-xs underline underline-offset-2"
+                        >
+                          Discord で開く
+                        </a>
+                      )}
+                      {discord.error && (
+                        <details className="text-xs text-destructive">
+                          <summary className="cursor-pointer">エラー内容</summary>
+                          <p className="mt-1 break-all">{discord.error}</p>
+                        </details>
+                      )}
+                      {discord.status === 'failed' &&
+                        (isDraft || isArchived ? (
+                          <p className="text-xs text-muted-foreground">
+                            公開中のお知らせのみ再送信できます
+                          </p>
+                        ) : (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="mt-1"
+                            disabled={resending || submitting}
+                            onClick={() => void resend()}
+                          >
+                            {resending ? '再送信中...' : '再送信'}
+                          </Button>
+                        ))}
+                    </div>
+                  )}
+
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={discordEnabled}
+                      disabled={channelLocked}
+                      onCheckedChange={(checked) => setDiscordEnabled(checked === true)}
+                    />
+                    Discord に通知する
+                  </label>
+
+                  <div
+                    className={
+                      discordEnabled
+                        ? 'space-y-3'
+                        : 'pointer-events-none space-y-3 opacity-50'
+                    }
+                  >
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={mentionEveryone}
+                        disabled={!discordEnabled}
+                        onCheckedChange={(checked) => setMentionEveryone(checked === true)}
+                      />
+                      @everyone を付ける
+                    </label>
+                    {channelLocked && (
+                      <p className="-mt-2 text-xs text-muted-foreground">
+                        送信済みのため、変更しても再通知はされません
+                      </p>
+                    )}
+
+                    <div className="max-w-xs space-y-1">
+                      <p className="text-sm font-medium">通知先チャンネル</p>
+                      <Select
+                        value={channelId ?? ''}
+                        disabled={!discordEnabled || channelLocked}
+                        onValueChange={(value) => {
+                          setChannelId(value)
+                          // 以降はカテゴリを変えても上書きしない
+                          setChannelTouched(true)
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="チャンネルを選択" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {channels?.channels.map((channel) => (
+                            <SelectItem key={channel.id} value={channel.id}>
+                              {channel.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {channelLocked
+                          ? '送信済みのため変更できません'
+                          : 'カテゴリに合わせて自動で選ばれます（変更可）'}
+                      </p>
+                    </div>
+
+                    {discordPreview.hasTable && (
+                      <p className="text-xs text-amber-600 dark:text-amber-500">
+                        テーブルは Discord では崩れて表示されます
+                      </p>
+                    )}
+                    {discordPreview.truncated && (
+                      <p className="text-xs text-amber-600 dark:text-amber-500">
+                        本文が長いため、Discord では途中まで表示されます
+                      </p>
+                    )}
+
+                    <div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowDiscordPreview((v) => !v)}
+                      >
+                        {showDiscordPreview
+                          ? 'Discord プレビューを閉じる'
+                          : 'Discord プレビュー'}
+                      </Button>
+                      {showDiscordPreview && (
+                        <pre className="mt-1 max-h-60 overflow-y-auto rounded-lg border bg-muted/30 p-3 text-xs whitespace-pre-wrap">
+                          {discordPreview.content}
+                        </pre>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </section>
+
             <DialogFooter className="sm:justify-between">
               <Button type="button" variant="outline" onClick={() => setStep(1)}>
                 戻る
@@ -461,6 +808,25 @@ export function AnnouncementEditor({
               )}
             </p>
             <p className="text-sm text-muted-foreground">「{title}」</p>
+            <p className="text-sm">
+              {/* 送信済みなら投稿を編集、未送信なら新規投稿になる */}
+              {discord?.messageId ? (
+                <>
+                  Discord の投稿（{channelNameOf(discord.channelId)}）も同じ内容に
+                  <span className="font-semibold">更新されます</span>。
+                </>
+              ) : !channelsLoaded && discordEnabled ? (
+                // 取得が終わるまで通知先が確定しないので、断定した文言を出さない
+                <>通知先を確認しています...</>
+              ) : confirmedChannelId ? (
+                <>
+                  <span className="font-semibold">{channelNameOf(confirmedChannelId)}</span> へ
+                  {mentionEveryone ? '@everyone 付きで' : ''}投稿します。
+                </>
+              ) : (
+                <>Discord には投稿されません。</>
+              )}
+            </p>
             <DialogFooter className="sm:justify-between">
               <Button
                 type="button"
@@ -470,7 +836,7 @@ export function AnnouncementEditor({
               >
                 戻る
               </Button>
-              <Button type="button" disabled={submitting} onClick={publish}>
+              <Button type="button" disabled={submitting} onClick={() => void publish()}>
                 {submitting ? '送信中...' : canChooseSchedule ? '公開する' : '更新する'}
               </Button>
             </DialogFooter>

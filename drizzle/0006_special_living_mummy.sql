@@ -1,0 +1,2 @@
+ALTER TYPE "public"."discord_notification_status" ADD VALUE 'sending' BEFORE 'sent';--> statement-breakpoint
+CREATE INDEX "announcements_discord_pending_idx" ON "announcements" USING btree ("discord_notification_status","publish_at");
