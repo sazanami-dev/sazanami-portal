@@ -149,12 +149,13 @@ export async function uploadAvatar(formData: FormData) {
 
   // ファイル名はサーバー側で拡張子も含めて構築し、パストラバーサルを防止する。
   // クライアントから受け取った fileName は使用しない。
-  const safeFileName = `${userData.user.id}/${Date.now()}.${extension}`
+  const fileName = `${Date.now()}.${extension}`
+  const safeFilePath = `${userData.user.id}/${fileName}`
 
   const serviceClient = createAdminClient()
   const { data, error } = await serviceClient.storage
     .from('avatars')
-    .upload(safeFileName, file, {
+    .upload(safeFilePath, file, {
       contentType: file.type,
       upsert: true,
     })
@@ -162,6 +163,24 @@ export async function uploadAvatar(formData: FormData) {
   if (error) {
     console.error('[uploadAvatar] upload error:', error.message)
     throw new Error(error.message)
+  }
+
+  // 新しい画像のアップロード成功後、古い画像が蓄積しないようにそれ以前のファイルを削除
+  const { data: existingFiles, error: listError } = await serviceClient.storage
+    .from('avatars')
+    .list(userData.user.id)
+
+  if (!listError && existingFiles && existingFiles.length > 0) {
+    const filesToRemove = existingFiles
+      .filter((f) => f.name !== fileName && f.name !== '.emptyFolderPlaceholder')
+      .map((f) => `${userData.user.id}/${f.name}`)
+
+    if (filesToRemove.length > 0) {
+      const { error: removeError } = await serviceClient.storage.from('avatars').remove(filesToRemove)
+      if (removeError) {
+        console.error('[uploadAvatar] remove old avatars error:', removeError.message)
+      }
+    }
   }
 
   return { path: data.path }
