@@ -58,12 +58,23 @@ export async function getUserProfile(): Promise<UserProfileData | null> {
   }
 }
 
+const MAX_BIO_LENGTH = 2000
+
 export async function updateUserProfile(bio: string, avatarUrl: string | null) {
   const supabase = await createClient()
   const { data: userData } = await supabase.auth.getUser()
 
   if (!userData?.user) {
     throw new Error('Not authenticated')
+  }
+
+  if (bio && bio.length > MAX_BIO_LENGTH) {
+    throw new Error(`自己紹介は${MAX_BIO_LENGTH}文字以下にしてください`)
+  }
+
+  // avatarUrl が指定されている場合、自身のディレクトリ配下であることを検証
+  if (avatarUrl && !avatarUrl.startsWith(`${userData.user.id}/`)) {
+    throw new Error('不正なアバターURLです')
   }
 
   // Bypass RLS for upserting profile using Service Role Key, 
@@ -79,7 +90,7 @@ export async function updateUserProfile(bio: string, avatarUrl: string | null) {
 
   if (error) {
     console.error('[updateUserProfile] error:', error)
-    throw new Error('Failed to update profile: ' + error.message)
+    throw new Error('プロフィールの更新に失敗しました')
   }
 
   revalidatePath('/')
@@ -149,19 +160,38 @@ export async function uploadAvatar(formData: FormData) {
 
   // ファイル名はサーバー側で拡張子も含めて構築し、パストラバーサルを防止する。
   // クライアントから受け取った fileName は使用しない。
-  const safeFileName = `${userData.user.id}/${Date.now()}.${extension}`
+  const fileName = `${Date.now()}.${extension}`
+  const safeFilePath = `${userData.user.id}/${fileName}`
 
   const serviceClient = createAdminClient()
   const { data, error } = await serviceClient.storage
     .from('avatars')
-    .upload(safeFileName, file, {
+    .upload(safeFilePath, file, {
       contentType: file.type,
       upsert: true,
     })
 
   if (error) {
     console.error('[uploadAvatar] upload error:', error.message)
-    throw new Error(error.message)
+    throw new Error('画像のアップロードに失敗しました')
+  }
+
+  // 新しい画像のアップロード成功後、古い画像が蓄積しないようにそれ以前のファイルを削除
+  const { data: existingFiles, error: listError } = await serviceClient.storage
+    .from('avatars')
+    .list(userData.user.id)
+
+  if (!listError && existingFiles && existingFiles.length > 0) {
+    const filesToRemove = existingFiles
+      .filter((f) => f.name !== fileName && f.name !== '.emptyFolderPlaceholder')
+      .map((f) => `${userData.user.id}/${f.name}`)
+
+    if (filesToRemove.length > 0) {
+      const { error: removeError } = await serviceClient.storage.from('avatars').remove(filesToRemove)
+      if (removeError) {
+        console.error('[uploadAvatar] remove old avatars error:', removeError.message)
+      }
+    }
   }
 
   return { path: data.path }
