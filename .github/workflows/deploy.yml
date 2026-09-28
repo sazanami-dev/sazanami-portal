@@ -13,8 +13,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  IMAGE: ghcr.io/sazanami-dev/sazanami-portal
-  # サーバー上のデプロイディレクトリ（compose.yaml と実行時 .env を配置済みの場所）
+  # イメージ名はこのワークフローが置かれているリポジトリから導出する。
+  # ハードコードすると検証用リポジトリでも本番と同じパッケージ名を狙ってしまう。
+  IMAGE: ghcr.io/${{ github.repository }}
+  # サーバー上のデプロイディレクトリ（docker-compose.yml と実行時 .env を配置済みの場所）
   DEPLOY_DIR: /opt/sazanami-portal
 
 jobs:
@@ -32,9 +34,7 @@ jobs:
 
       - name: Lint
         # ESLint を Docker 内で実行（ランナーに Node を入れずに済む）。
-        # 既存コードに未修正のエラーがあるため、当面は非ブロッキング
-        # （ログには残すがデプロイは止めない）。エラーは段階的に修正する。
-        continue-on-error: true
+        # エラーが出たらデプロイを止める。警告は lint の設定上ビルドを落とさない。
         run: docker build --target lint -t sazanami-portal-lint .
 
       - name: Log in to GHCR
@@ -45,6 +45,7 @@ jobs:
           docker build --target runner \
             --build-arg NEXT_PUBLIC_SUPABASE_URL="${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" \
             --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" \
+            --build-arg NEXT_PUBLIC_SITE_URL="${{ vars.NEXT_PUBLIC_SITE_URL }}" \
             -t "${IMAGE}:latest" \
             -t "${IMAGE}:${{ github.sha }}" \
             .
@@ -60,6 +61,13 @@ jobs:
 
       - name: Deploy
         working-directory: ${{ env.DEPLOY_DIR }}
+        # 起動するイメージを latest ではなく SHA で固定する。latest のままだと
+        # 「いま動いているのがどのコミットか」が特定できず、切り戻し先も決められない。
+        # サーバー上で手動に切り戻す場合は
+        #   APP_IMAGE=<image> APP_TAG=<戻したい sha> docker compose up -d
+        env:
+          APP_IMAGE: ${{ env.IMAGE }}
+          APP_TAG: ${{ github.sha }}
         run: |
           docker compose pull
           docker compose up -d

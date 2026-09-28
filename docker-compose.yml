@@ -3,16 +3,28 @@
 # .env を配置し、GitHub Actionsのdeployステップから `docker compose pull && up -d` する。
 services:
   app:
-    image: ghcr.io/sazanami-dev/sazanami-portal:latest
+    # 起動するイメージは GitHub Actions の deploy ステップが APP_IMAGE / APP_TAG で渡す。
+    # 手動で `docker compose up -d` する場合は既定値（本番の latest）が使われる。
+    # 切り戻しは APP_TAG に戻したいコミットの sha を渡す。
+    image: ${APP_IMAGE:-ghcr.io/sazanami-dev/sazanami-portal}:${APP_TAG:-latest}
     container_name: sazanami-portal
     restart: unless-stopped
     # 実行時シークレット（Discord / GitHub App / Google / Supabase service role /
     # DATABASE_URL 等）はサーバー上の .env から注入する（git管理外）。
+    # env_file は必須指定なので、.env が無いと `docker compose up` が失敗する。
     env_file:
       - .env
+    # NOTE: environment は env_file より優先される。ここに書いた値は .env で上書きできない。
     environment:
       - NODE_ENV=production
       - PORT=3000
     ports:
-      # 既存のリバースプロキシ構成に合わせて調整すること。
+      # リバースプロキシは別ホストにあるため、ホストの全インターフェースで公開する。
+      # プロキシを同一ホストに移す場合は "127.0.0.1:3000:3000" に絞ること。
       - "3000:3000"
+    # restart: unless-stopped での長期稼働でログが無制限に増えるのを防ぐ
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
