@@ -15,7 +15,9 @@
  *       （client.ts が import してよいのは supabaseCookieName() だけ）
  */
 export function supabaseServerUrl(): string {
-  return process.env.SUPABASE_INTERNAL_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!
+  // ?? だと .env に SUPABASE_INTERNAL_URL= と空で書かれた場合に空文字が採用され、
+  // 接続先が空のまま全リクエストが 500 になる。空は未設定と同じ扱いにする。
+  return process.env.SUPABASE_INTERNAL_URL?.trim() || process.env.NEXT_PUBLIC_SUPABASE_URL!
 }
 
 /**
