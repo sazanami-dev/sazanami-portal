@@ -60,7 +60,7 @@ export async function getUserProfile(): Promise<UserProfileData | null> {
 
 const MAX_BIO_LENGTH = 2000
 
-export async function updateUserProfile(bio: string, avatarUrl: string | null) {
+export async function updateUserProfile(bio: string, avatarUrl?: string | null) {
   const supabase = await createClient()
   const { data: userData } = await supabase.auth.getUser()
 
@@ -73,7 +73,9 @@ export async function updateUserProfile(bio: string, avatarUrl: string | null) {
   }
 
   // avatarUrl が指定されている場合、自身のディレクトリ配下かつ安全なパスであることを検証
-  if (avatarUrl) {
+  const isAvatarUpdated = avatarUrl !== undefined
+
+  if (isAvatarUpdated && avatarUrl) {
     if (
       !avatarUrl.startsWith(`${userData.user.id}/`) ||
       avatarUrl.includes('..') ||
@@ -97,12 +99,17 @@ export async function updateUserProfile(bio: string, avatarUrl: string | null) {
   const oldAvatarUrl = currentProfile?.avatar_url
 
   // 2. DB を更新
+  const updatePayload: { user_id: string; bio: string; avatar_url?: string | null } = { 
+    user_id: userData.user.id, 
+    bio 
+  }
+  if (isAvatarUpdated) {
+    updatePayload.avatar_url = avatarUrl
+  }
+
   const { error } = await serviceClient
     .from('user_profiles')
-    .upsert(
-      { user_id: userData.user.id, bio, avatar_url: avatarUrl },
-      { onConflict: 'user_id' }
-    )
+    .upsert(updatePayload, { onConflict: 'user_id' })
 
   if (error) {
     console.error('[updateUserProfile] error:', error)
@@ -110,7 +117,7 @@ export async function updateUserProfile(bio: string, avatarUrl: string | null) {
   }
 
   // 3. DB更新成功後、古いアバターが存在し、かつ新しいアバターと異なる場合に旧ファイルのみを削除
-  if (oldAvatarUrl && oldAvatarUrl !== avatarUrl) {
+  if (isAvatarUpdated && oldAvatarUrl && oldAvatarUrl !== avatarUrl) {
     // セキュリティ検証: 自ユーザーのパス配下であることを確認
     if (oldAvatarUrl.startsWith(`${userData.user.id}/`) && !oldAvatarUrl.includes('..')) {
       const { error: removeError } = await serviceClient.storage

@@ -103,7 +103,7 @@ export function ProfileEditForm({ userProfile, avatarSignedUrl }: ProfileEditFor
     setErrorMsg('')
     setSuccessMsg('')
     try {
-      let avatarUrl = userProfile.user_profiles?.avatar_url || null
+      let newAvatarUrl: string | undefined = undefined
 
       if (imageSrc && croppedAreaPixels) {
         const croppedImageBlob = await getCroppedImg(imageSrc, croppedAreaPixels)
@@ -113,7 +113,7 @@ export function ProfileEditForm({ userProfile, avatarSignedUrl }: ProfileEditFor
 
           try {
             const result = await uploadAvatar(formData)
-            avatarUrl = result.path
+            newAvatarUrl = result.path
           } catch (uploadError: unknown) {
             const message = uploadError instanceof Error ? uploadError.message : '画像のアップロードに失敗しました'
             throw new Error(`アップロード失敗: ${message}`)
@@ -121,7 +121,7 @@ export function ProfileEditForm({ userProfile, avatarSignedUrl }: ProfileEditFor
         }
       }
 
-      await updateUserProfile(bio, avatarUrl)
+      await updateUserProfile(bio, newAvatarUrl)
       setSuccessMsg('プロフィールを保存しました')
       setImageSrc(null)
       router.refresh()
