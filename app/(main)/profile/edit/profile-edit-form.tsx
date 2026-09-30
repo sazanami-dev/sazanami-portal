@@ -103,7 +103,7 @@ export function ProfileEditForm({ userProfile, avatarSignedUrl }: ProfileEditFor
     setErrorMsg('')
     setSuccessMsg('')
     try {
-      let avatarUrl = userProfile.user_profiles?.avatar_url || null
+      let newAvatarUrl: string | undefined = undefined
 
       if (imageSrc && croppedAreaPixels) {
         const croppedImageBlob = await getCroppedImg(imageSrc, croppedAreaPixels)
@@ -113,7 +113,7 @@ export function ProfileEditForm({ userProfile, avatarSignedUrl }: ProfileEditFor
 
           try {
             const result = await uploadAvatar(formData)
-            avatarUrl = result.path
+            newAvatarUrl = result.path
           } catch (uploadError: unknown) {
             const message = uploadError instanceof Error ? uploadError.message : '画像のアップロードに失敗しました'
             throw new Error(`アップロード失敗: ${message}`)
@@ -121,7 +121,7 @@ export function ProfileEditForm({ userProfile, avatarSignedUrl }: ProfileEditFor
         }
       }
 
-      await updateUserProfile(bio, avatarUrl)
+      await updateUserProfile(bio, newAvatarUrl)
       setSuccessMsg('プロフィールを保存しました')
       setImageSrc(null)
       router.refresh()
@@ -319,13 +319,17 @@ export function ProfileEditForm({ userProfile, avatarSignedUrl }: ProfileEditFor
                 className="min-h-[300px] w-full rounded-md border border-input bg-transparent px-4 py-3 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 resize-y"
                 placeholder="自己紹介を入力してください...&#10;&#10;マークダウン記法が使えます:&#10;**太字** _斜体_ ~~取り消し線~~&#10;- リスト項目&#10;[リンク](https://example.com)"
                 value={bio}
+                maxLength={2000}
                 onChange={(e) => setBio(e.target.value)}
               />
             )}
 
-            <p className="mt-2 text-xs text-muted-foreground">
-              マークダウン記法に対応しています。プレビュータブで表示を確認できます。
-            </p>
+            <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+              <p>
+                マークダウン記法に対応しています。プレビュータブで表示を確認できます。
+              </p>
+              <span>{bio.length} / 2000</span>
+            </div>
           </div>
         </div>
       </div>

@@ -58,7 +58,9 @@ export async function getUserProfile(): Promise<UserProfileData | null> {
   }
 }
 
-export async function updateUserProfile(bio: string, avatarUrl: string | null) {
+const MAX_BIO_LENGTH = 2000
+
+export async function updateUserProfile(bio: string, avatarUrl?: string | null) {
   const supabase = await createClient()
   const { data: userData } = await supabase.auth.getUser()
 
@@ -66,20 +68,67 @@ export async function updateUserProfile(bio: string, avatarUrl: string | null) {
     throw new Error('Not authenticated')
   }
 
+  if (bio && bio.length > MAX_BIO_LENGTH) {
+    throw new Error(`自己紹介は${MAX_BIO_LENGTH}文字以下にしてください`)
+  }
+
+  // avatarUrl が指定されている場合、自身のディレクトリ配下かつ安全なパスであることを検証
+  const isAvatarUpdated = avatarUrl !== undefined
+
+  if (isAvatarUpdated && avatarUrl) {
+    if (
+      !avatarUrl.startsWith(`${userData.user.id}/`) ||
+      avatarUrl.includes('..') ||
+      avatarUrl.startsWith('/')
+    ) {
+      throw new Error('不正なアバターURLです')
+    }
+  }
+
   // Bypass RLS for upserting profile using Service Role Key, 
   // since we already authenticated the user.
   const serviceClient = createAdminClient()
 
+  // 1. DB更新前に現在の avatar_url を取得しておく
+  const { data: currentProfile } = await serviceClient
+    .from('user_profiles')
+    .select('avatar_url')
+    .eq('user_id', userData.user.id)
+    .maybeSingle()
+
+  const oldAvatarUrl = currentProfile?.avatar_url
+
+  // 2. DB を更新
+  const updatePayload: { user_id: string; bio: string; avatar_url?: string | null } = { 
+    user_id: userData.user.id, 
+    bio 
+  }
+  if (isAvatarUpdated) {
+    updatePayload.avatar_url = avatarUrl
+  }
+
   const { error } = await serviceClient
     .from('user_profiles')
-    .upsert(
-      { user_id: userData.user.id, bio, avatar_url: avatarUrl },
-      { onConflict: 'user_id' }
-    )
+    .upsert(updatePayload, { onConflict: 'user_id' })
 
   if (error) {
     console.error('[updateUserProfile] error:', error)
-    throw new Error('Failed to update profile: ' + error.message)
+    throw new Error('プロフィールの更新に失敗しました')
+  }
+
+  // 3. DB更新成功後、古いアバターが存在し、かつ新しいアバターと異なる場合に旧ファイルのみを削除
+  if (isAvatarUpdated && oldAvatarUrl && oldAvatarUrl !== avatarUrl) {
+    // セキュリティ検証: 自ユーザーのパス配下であることを確認
+    if (oldAvatarUrl.startsWith(`${userData.user.id}/`) && !oldAvatarUrl.includes('..')) {
+      const { error: removeError } = await serviceClient.storage
+        .from('avatars')
+        .remove([oldAvatarUrl])
+
+      if (removeError) {
+        // 削除の失敗は DB 更新完了に影響させず、ログにとどめる
+        console.error('[updateUserProfile] remove old avatar error:', removeError.message)
+      }
+    }
   }
 
   revalidatePath('/')
@@ -149,19 +198,20 @@ export async function uploadAvatar(formData: FormData) {
 
   // ファイル名はサーバー側で拡張子も含めて構築し、パストラバーサルを防止する。
   // クライアントから受け取った fileName は使用しない。
-  const safeFileName = `${userData.user.id}/${Date.now()}.${extension}`
+  const fileName = `${Date.now()}.${extension}`
+  const safeFilePath = `${userData.user.id}/${fileName}`
 
   const serviceClient = createAdminClient()
   const { data, error } = await serviceClient.storage
     .from('avatars')
-    .upload(safeFileName, file, {
+    .upload(safeFilePath, file, {
       contentType: file.type,
       upsert: true,
     })
 
   if (error) {
     console.error('[uploadAvatar] upload error:', error.message)
-    throw new Error(error.message)
+    throw new Error('画像のアップロードに失敗しました')
   }
 
   return { path: data.path }
