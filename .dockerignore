@@ -1,0 +1,24 @@
+# 依存・ビルド成果物（イメージ内で再生成する）
+node_modules
+.next
+out
+build
+
+# git / CI
+.git
+.gitignore
+.github
+
+# 環境変数（実行時は compose の env_file / build-arg で注入）
+.env
+.env.*
+
+# その他
+.DS_Store
+*.pem
+npm-debug.log*
+README.md
+.vscode
+.idea
+coverage
+*.tsbuildinfo
