@@ -17,13 +17,16 @@ jobs:
     # GitHub ホストランナーで動かす。このリポジトリは public なので、
     # PR トリガーをセルフホストランナーで動かすと fork のコードが
     # デプロイ先サーバー上で実行されてしまう。
-    runs-on: ubuntu-latest
+    # ubuntu-latest は 2026-10-19 に Ubuntu 26 へ自動移行されるため、
+    # 実行環境が黙って変わらないようバージョンを固定する。
+    # イメージの提供終了に備えて定期的に見直すこと。
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Lint
         run: docker build --target lint -t portal-ci-lint .

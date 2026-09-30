@@ -30,7 +30,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Lint
         # ESLint を Docker 内で実行（ランナーに Node を入れずに済む）。
