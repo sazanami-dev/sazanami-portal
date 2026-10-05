@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1773731984254,
+      "tag": "0000_youthful_miek",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1773851947289,
+      "tag": "0001_left_dragon_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774926339910,
+      "tag": "0002_abandoned_ultimo",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1779649032711,
+      "tag": "0003_mushy_obadiah_stane",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781318394796,
+      "tag": "0004_safe_junta",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788103869085,
+      "tag": "0005_grey_kulan_gath",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789194958416,
+      "tag": "0006_special_living_mummy",
+      "breakpoints": true
+    }
+  ]
+}

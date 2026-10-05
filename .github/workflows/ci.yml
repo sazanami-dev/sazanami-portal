@@ -1,0 +1,50 @@
+name: CI
+
+# PR のビルドチェック。デプロイはしない。
+on:
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+# 同じ PR に続けて push された場合は古い実行を打ち切る
+# （deploy.yml とは違い、こちらは途中で止めて構わない）
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # GitHub ホストランナーで動かす。このリポジトリは public なので、
+    # PR トリガーをセルフホストランナーで動かすと fork のコードが
+    # デプロイ先サーバー上で実行されてしまう。
+    # ubuntu-latest は 2026-10-19 に Ubuntu 26 へ自動移行されるため、
+    # 実行環境が黙って変わらないようバージョンを固定する。
+    # イメージの提供終了に備えて定期的に見直すこと。
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Lint
+        run: docker build --target lint -t portal-ci-lint .
+
+      - name: Build
+        # ビルドが通ることだけを確認する。イメージは push せず捨てる。
+        # NEXT_PUBLIC_* は Dockerfile の必須チェックを満たすためのダミーで、
+        # クライアントバンドルに焼き込まれるためこのイメージは配布できない。
+        # fork からの PR には secrets が渡らないので、実値に依存させない。
+        run: |
+          docker build --target runner \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL="https://ci-placeholder.supabase.co" \
+            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="ci-placeholder" \
+            --build-arg NEXT_PUBLIC_SITE_URL="https://ci-placeholder.invalid" \
+            -t portal-ci-build .
+
+      - name: Check migration files
+        # スキーマとマイグレーションの整合性を見る。DB には接続しない。
+        run: |
+          docker build --target migrator -t portal-ci-migrator .
+          docker run --rm portal-ci-migrator npx drizzle-kit check
