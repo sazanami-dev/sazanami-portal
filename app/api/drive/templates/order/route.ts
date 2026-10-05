@@ -22,7 +22,8 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 })
   }
 
-  const ok = await reorderTemplates(ids)
-  if (!ok) return NextResponse.json({ error: 'update_failed' }, { status: 500 })
+  const result = await reorderTemplates(ids)
+  if (result === 'mismatch') return NextResponse.json({ error: 'stale_list' }, { status: 409 })
+  if (result === 'error') return NextResponse.json({ error: 'update_failed' }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

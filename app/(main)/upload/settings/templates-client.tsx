@@ -160,6 +160,13 @@ export function TemplatesClient({ initialTemplates, defaultBaseFolderId }: Props
     }
   }
 
+  // 保存は全件まとめて成功か失敗のどちらかなので、失敗時はサーバーの現在の並びに合わせる
+  async function reloadTemplates(fallback: UploadTemplate[]) {
+    const listRes = await fetch('/api/drive/templates').catch(() => null)
+    const listData = listRes?.ok ? await listRes.json().catch(() => null) : null
+    setTemplates(listData?.templates ?? fallback)
+  }
+
   async function moveTemplate(idx: number, dir: -1 | 1) {
     const target = idx + dir
     if (reordering || target < 0 || target >= templates.length) return
@@ -175,13 +182,17 @@ export function TemplatesClient({ initialTemplates, defaultBaseFolderId }: Props
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: next.map((t) => t.id) }),
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        setListError(
+          res.status === 409
+            ? '他の変更と重なったため並べ替えできませんでした。最新の一覧を表示しています'
+            : '並び順の保存に失敗しました'
+        )
+        await reloadTemplates(prev)
+      }
     } catch {
-      // 一部だけ保存された可能性があるので、サーバーの状態を取り直す
       setListError('並び順の保存に失敗しました')
-      const listRes = await fetch('/api/drive/templates').catch(() => null)
-      const listData = listRes?.ok ? await listRes.json().catch(() => null) : null
-      setTemplates(listData?.templates ?? prev)
+      await reloadTemplates(prev)
     } finally {
       setReordering(false)
     }

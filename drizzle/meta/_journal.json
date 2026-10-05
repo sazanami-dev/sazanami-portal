@@ -57,6 +57,13 @@
       "when": 1791188932366,
       "tag": "0007_youthful_quasimodo",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791190292086,
+      "tag": "0008_reorder_upload_templates",
+      "breakpoints": true
     }
   ]
 }

@@ -176,13 +176,17 @@ export async function updateTemplate(id: string, patch: UpdateTemplatePatch): Pr
   return !error
 }
 
-/** ids の並び順をそのまま sort_order として保存する。 */
-export async function reorderTemplates(ids: string[]): Promise<boolean> {
+/**
+ * ids の並び順をそのまま sort_order として 1 トランザクションで保存する。
+ * ids が全テンプレートと一致しない場合（古い一覧からの並べ替えなど）は 'mismatch'。
+ */
+export async function reorderTemplates(ids: string[]): Promise<'ok' | 'mismatch' | 'error'> {
   const admin = createAdminClient()
-  const results = await Promise.all(
-    ids.map((id, i) => admin.from('upload_templates').update({ sort_order: i }).eq('id', id))
-  )
-  return results.every((r) => !r.error)
+  const { error } = await admin.rpc('reorder_upload_templates', { p_ids: ids })
+  if (!error) return 'ok'
+  // 22023: 関数内の ID 不一致、22P02: uuid として不正な文字列
+  if (error.code === '22023' || error.code === '22P02') return 'mismatch'
+  return 'error'
 }
 
 export async function deleteTemplate(id: string): Promise<boolean> {
