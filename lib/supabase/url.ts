@@ -31,8 +31,11 @@ export function supabaseServerUrl(): string {
 export function toPublicSupabaseUrl(url: string): string {
   const serverBase = supabaseServerUrl().replace(/\/+$/, '')
   const publicBase = process.env.NEXT_PUBLIC_SUPABASE_URL!.replace(/\/+$/, '')
-  if (serverBase === publicBase || !url.startsWith(serverBase)) return url
-  return publicBase + url.slice(serverBase.length)
+  if (serverBase === publicBase) return url
+  // http://10.0.0.5:8000 が http://10.0.0.5:80001/... に前方一致しないよう境界まで見る
+  const rest = url.slice(serverBase.length)
+  if (!url.startsWith(serverBase) || !(rest === '' || /^[/?#]/.test(rest))) return url
+  return publicBase + rest
 }
 
 /**
