@@ -21,6 +21,24 @@ export function supabaseServerUrl(): string {
 }
 
 /**
+ * サーバー側クライアントが発行した URL（Storage の署名付き URL など）を、
+ * ブラウザから到達できる公開 URL に書き換える。
+ *
+ * supabaseServerUrl() が内部アドレスのとき、createSignedUrl() 等が返す URL も
+ * 内部アドレスになり、ブラウザからは読めない（https ページでは mixed content にもなる）。
+ * 署名はパスに対して付くため、接続先の部分を差し替えても有効なまま。
+ */
+export function toPublicSupabaseUrl(url: string): string {
+  const serverBase = supabaseServerUrl().replace(/\/+$/, '')
+  const publicBase = process.env.NEXT_PUBLIC_SUPABASE_URL!.replace(/\/+$/, '')
+  if (serverBase === publicBase) return url
+  // http://10.0.0.5:8000 が http://10.0.0.5:80001/... に前方一致しないよう境界まで見る
+  const rest = url.slice(serverBase.length)
+  if (!url.startsWith(serverBase) || !(rest === '' || /^[/?#]/.test(rest))) return url
+  return publicBase + rest
+}
+
+/**
  * 認証 Cookie（PKCE の code-verifier / セッション）のストレージキー名。
  *
  * supabase-js は既定でストレージキーを接続先 URL のホスト名から導出する

@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { toPublicSupabaseUrl } from '@/lib/supabase/url'
 import { revalidatePath } from 'next/cache'
 
 export type UserProfileData = {
@@ -168,7 +169,7 @@ export async function getAvatarSignedUrl(avatarUrl: string | null): Promise<stri
     return null
   }
 
-  return data.signedUrl
+  return toPublicSupabaseUrl(data.signedUrl)
 }
 
 export async function uploadAvatar(formData: FormData) {
