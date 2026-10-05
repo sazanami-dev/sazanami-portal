@@ -56,6 +56,8 @@ export function TemplatesClient({ initialTemplates, defaultBaseFolderId }: Props
   const [form, setForm] = useState<FormState | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [reordering, setReordering] = useState(false)
+  const [listError, setListError] = useState<string | null>(null)
 
   function startCreate() {
     setError(null)
@@ -155,6 +157,33 @@ export function TemplatesClient({ initialTemplates, defaultBaseFolderId }: Props
       setError('ネットワークエラーが発生しました')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function moveTemplate(idx: number, dir: -1 | 1) {
+    const target = idx + dir
+    if (reordering || target < 0 || target >= templates.length) return
+    const prev = templates
+    const next = [...templates]
+    ;[next[idx], next[target]] = [next[target], next[idx]]
+    setTemplates(next)
+    setReordering(true)
+    setListError(null)
+    try {
+      const res = await fetch('/api/drive/templates/order', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: next.map((t) => t.id) }),
+      })
+      if (!res.ok) throw new Error()
+    } catch {
+      // 一部だけ保存された可能性があるので、サーバーの状態を取り直す
+      setListError('並び順の保存に失敗しました')
+      const listRes = await fetch('/api/drive/templates').catch(() => null)
+      const listData = listRes?.ok ? await listRes.json().catch(() => null) : null
+      setTemplates(listData?.templates ?? prev)
+    } finally {
+      setReordering(false)
     }
   }
 
@@ -323,10 +352,11 @@ export function TemplatesClient({ initialTemplates, defaultBaseFolderId }: Props
       </Dialog>
 
       <div className="space-y-3">
+        {listError && <p className="text-sm text-red-600">{listError}</p>}
         {templates.length === 0 && (
           <p className="text-sm text-muted-foreground">テンプレートがありません。</p>
         )}
-        {templates.map((t) => (
+        {templates.map((t, idx) => (
           <div key={t.id} className="flex items-start justify-between gap-4 rounded-xl border bg-background p-4 shadow-sm">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -347,6 +377,24 @@ export function TemplatesClient({ initialTemplates, defaultBaseFolderId }: Props
               )}
             </div>
             <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => moveTemplate(idx, -1)}
+                disabled={reordering || idx === 0}
+                aria-label="上へ移動"
+                className="rounded border px-2 py-1.5 text-xs hover:bg-muted disabled:opacity-30"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                onClick={() => moveTemplate(idx, 1)}
+                disabled={reordering || idx === templates.length - 1}
+                aria-label="下へ移動"
+                className="rounded border px-2 py-1.5 text-xs hover:bg-muted disabled:opacity-30"
+              >
+                ↓
+              </button>
               <button type="button" onClick={() => startEdit(t)} className="rounded border px-3 py-1.5 text-xs hover:bg-muted">
                 編集
               </button>
