@@ -13,6 +13,7 @@ export type UploadTemplate = {
   filenameFormat: string | null
   isActive: boolean
   managerOnly: boolean
+  sortOrder: number
   createdBy: string | null
   createdAt: string
   updatedAt: string
@@ -27,6 +28,7 @@ type TemplateRow = {
   filename_format: string | null
   is_active: boolean
   manager_only: boolean
+  sort_order: number
   created_by: string | null
   created_at: string
   updated_at: string
@@ -42,6 +44,7 @@ function rowToTemplate(row: TemplateRow): UploadTemplate {
     filenameFormat: row.filename_format,
     isActive: row.is_active,
     managerOnly: row.manager_only,
+    sortOrder: row.sort_order,
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -49,7 +52,7 @@ function rowToTemplate(row: TemplateRow): UploadTemplate {
 }
 
 const SELECT =
-  'id, name, description, base_folder_id, segments, filename_format, is_active, manager_only, created_by, created_at, updated_at'
+  'id, name, description, base_folder_id, segments, filename_format, is_active, manager_only, sort_order, created_by, created_at, updated_at'
 
 /** segments のバリデーション。問題なければ正規化した配列、不正なら null。 */
 export function validateSegments(input: unknown): TemplateSegment[] | null {
@@ -88,7 +91,11 @@ export async function listTemplates(options?: {
   includeManagerOnly?: boolean
 }): Promise<UploadTemplate[]> {
   const admin = createAdminClient()
-  let query = admin.from('upload_templates').select(SELECT).order('created_at', { ascending: false })
+  let query = admin
+    .from('upload_templates')
+    .select(SELECT)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: false })
   if (options?.activeOnly) query = query.eq('is_active', true)
   if (options?.includeManagerOnly === false) query = query.eq('manager_only', false)
   const { data, error } = await query
@@ -116,6 +123,15 @@ type CreateTemplateInput = {
 
 export async function createTemplate(input: CreateTemplateInput): Promise<UploadTemplate | null> {
   const admin = createAdminClient()
+  // 新規テンプレートは末尾に追加する
+  const { data: last } = await admin
+    .from('upload_templates')
+    .select('sort_order')
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const sortOrder = last ? (last as { sort_order: number }).sort_order + 1 : 0
+
   const { data, error } = await admin
     .from('upload_templates')
     .insert({
@@ -126,6 +142,7 @@ export async function createTemplate(input: CreateTemplateInput): Promise<Upload
       filename_format: input.filenameFormat ?? null,
       is_active: input.isActive ?? true,
       manager_only: input.managerOnly ?? false,
+      sort_order: sortOrder,
       created_by: input.createdBy,
     })
     .select(SELECT)
@@ -157,6 +174,19 @@ export async function updateTemplate(id: string, patch: UpdateTemplatePatch): Pr
 
   const { error } = await admin.from('upload_templates').update(update).eq('id', id)
   return !error
+}
+
+/**
+ * ids の並び順をそのまま sort_order として 1 トランザクションで保存する。
+ * ids が全テンプレートと一致しない場合（古い一覧からの並べ替えなど）は 'mismatch'。
+ */
+export async function reorderTemplates(ids: string[]): Promise<'ok' | 'mismatch' | 'error'> {
+  const admin = createAdminClient()
+  const { error } = await admin.rpc('reorder_upload_templates', { p_ids: ids })
+  if (!error) return 'ok'
+  // 22023: 関数内の ID 不一致、22P02: uuid として不正な文字列
+  if (error.code === '22023' || error.code === '22P02') return 'mismatch'
+  return 'error'
 }
 
 export async function deleteTemplate(id: string): Promise<boolean> {

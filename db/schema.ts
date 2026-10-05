@@ -255,6 +255,8 @@ export const uploadTemplates = pgTable('upload_templates', {
   isActive: boolean('is_active').notNull().default(true),
   // true の場合、manager 以上のみ閲覧・アップロード可能
   managerOnly: boolean('manager_only').notNull().default(false),
+  // 表示順（昇順）。設定画面で並べ替える
+  sortOrder: integer('sort_order').notNull().default(0),
 
   createdBy: uuid('created_by').references(() => users.id, {
     onDelete: 'set null',
