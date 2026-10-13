@@ -70,6 +70,8 @@ export async function updateSession(request: NextRequest) {
   // スケジューラからの呼び出しは Cookie を持たない。
   // ルート側で CRON_SECRET を検証するため、セッション処理ごと素通しする。
   if (pathname.startsWith('/api/cron/')) return supabaseResponse
+  // Pomerium の同期スクリプトも同様（ルート側で POMERIUM_SYNC_SECRET を検証する）
+  if (pathname === '/api/pomerium/allowlist') return supabaseResponse
 
   // 公開パス・認証パスで同一の設定を使うため、クライアント生成は1箇所に集約する
   const supabase = createServerClient(
